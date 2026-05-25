@@ -12,12 +12,20 @@ class DashboardView extends StatefulWidget {
 }
 
 class _DashboardViewState extends State<DashboardView> {
+  String? _asesorid;
+
   @override
   void initState() {
     super.initState();
-    final oficial = context.read<AuthOficialViewModel>().oficial;
-    if (oficial != null) {
-      context.read<DashboardViewModel>().cargarDashboard(oficial.asesorid);
+    _asesorid = context.read<AuthOficialViewModel>().oficial?.asesorid;
+    if (_asesorid != null) {
+      context.read<DashboardViewModel>().cargarDashboard(_asesorid!);
+    }
+  }
+
+  Future<void> _recargar() async {
+    if (_asesorid != null) {
+      await context.read<DashboardViewModel>().cargarDashboard(_asesorid!);
     }
   }
 
@@ -36,9 +44,11 @@ class _DashboardViewState extends State<DashboardView> {
           : vm.dashboard == null
               ? const Center(child: Text('Sin datos disponibles',
                   style: TextStyle(color: Colors.white54)))
-              : Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
+              : RefreshIndicator(
+                  onRefresh: _recargar,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
@@ -93,6 +103,7 @@ class _DashboardViewState extends State<DashboardView> {
                     ],
                   ),
                 ),
+              ),
     );
   }
 }
@@ -117,7 +128,7 @@ class _KpiCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.superficie,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
