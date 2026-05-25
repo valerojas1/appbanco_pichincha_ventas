@@ -17,7 +17,7 @@ class _DashboardViewState extends State<DashboardView> {
     super.initState();
     final oficial = context.read<AuthOficialViewModel>().oficial;
     if (oficial != null) {
-      context.read<DashboardViewModel>().cargarDashboard(oficial.userid);
+      context.read<DashboardViewModel>().cargarDashboard(oficial.asesorid);
     }
   }
 

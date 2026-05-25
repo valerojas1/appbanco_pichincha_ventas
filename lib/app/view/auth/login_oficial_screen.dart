@@ -11,13 +11,13 @@ class LoginOficialScreen extends StatefulWidget {
 }
 
 class _LoginOficialScreenState extends State<LoginOficialScreen> {
-  final _codigoController = TextEditingController();
+  final _dniController = TextEditingController();
   final _passController = TextEditingController();
   bool _verPassword = false;
 
   @override
   void dispose() {
-    _codigoController.dispose();
+    _dniController.dispose();
     _passController.dispose();
     super.dispose();
   }
@@ -31,12 +31,11 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
           child: Consumer<AuthOficialViewModel>(
             builder: (context, vm, _) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (vm.state == AuthOficialState.success) {
-                  vm.reset();
+              if (vm.state == AuthOficialState.success) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
                   Navigator.pushReplacementNamed(context, '/dashboard');
-                }
-              });
+                });
+              }
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -104,13 +103,16 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
 
                   const SizedBox(height: 48),
 
-                  // Código empleado
+                  // DNI
                   TextField(
-                    controller: _codigoController,
+                    controller: _dniController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 8,
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
-                      labelText: 'Código de Empleado',
-                      hintText: 'Ej: OFC-001',
+                      labelText: 'DNI',
+                      hintText: 'Ingresa tu DNI',
+                      counterText: '',
                       hintStyle: TextStyle(color: Colors.white38),
                       prefixIcon: Icon(Icons.badge_outlined),
                     ),
@@ -170,14 +172,25 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
                           color: AppTheme.amarillo)
                       : ElevatedButton(
                           onPressed: () => vm.login(
-                            _codigoController.text.trim(),
+                            _dniController.text.trim(),
                             _passController.text.trim(),
                           ),
                           child: const Text('ACCEDER AL PORTAL'),
                         ),
-
-
-                ],
+                  const SizedBox(height: 24),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.amarillo.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Demo — DNI: 10293847 | Pass: asesor123',
+                      style: TextStyle(fontSize: 11, color: Colors.white38),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  ],
               );
             },
           ),

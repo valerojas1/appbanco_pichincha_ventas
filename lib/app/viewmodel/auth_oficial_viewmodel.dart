@@ -14,19 +14,19 @@ class AuthOficialViewModel extends ChangeNotifier {
   String get errorMessage => _errorMessage;
   OficialModel? get oficial => _oficial;
 
-  Future<void> login(String codigo, String password) async {
+  Future<void> login(String dni, String password) async {
     _state = AuthOficialState.loading;
     _errorMessage = '';
     notifyListeners();
 
     try {
-      final user = await _authService.login(codigo, password);
+      final user = await _authService.login(dni, password);
       if (user != null) {
         _oficial = user;
         _state = AuthOficialState.success;
       } else {
         _state = AuthOficialState.error;
-        _errorMessage = 'Código o contraseña incorrectos';
+        _errorMessage = 'DNI o contraseña incorrectos';
       }
     } catch (e) {
       _state = AuthOficialState.error;

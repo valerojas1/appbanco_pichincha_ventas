@@ -2,46 +2,54 @@ class OficialModel {
   final String userid;
   final String nombre;
   final String apellido;
-  final String codigoempleado;
   final String dni;
   final String email;
-  final String zona;
   final String rol;
+  final String asesorid;
+  final String codigoasesor;
+  final String zonaasignada;
+  final String especialidad;
 
   OficialModel({
     required this.userid,
     required this.nombre,
     required this.apellido,
-    required this.codigoempleado,
     required this.dni,
     required this.email,
-    required this.zona,
     required this.rol,
+    required this.asesorid,
+    required this.codigoasesor,
+    required this.zonaasignada,
+    required this.especialidad,
   });
 
   factory OficialModel.fromJson(Map<String, dynamic> json) {
     return OficialModel(
-      userid: json['userid'] ?? '',
+      userid: json['id'] ?? '',
       nombre: json['nombre'] ?? '',
       apellido: json['apellido'] ?? '',
-      codigoempleado: json['codigoempleado'] ?? '',
       dni: json['dni'] ?? '',
       email: json['email'] ?? '',
-      zona: json['zona'] ?? '',
       rol: json['rol'] ?? '',
+      asesorid: json['asesorid'] ?? '',
+      codigoasesor: json['codigoasesor'] ?? '',
+      zonaasignada: json['zonaasignada'] ?? '',
+      especialidad: json['especialidad'] ?? '',
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
-      'userid': userid,
+      'id': userid,
       'nombre': nombre,
       'apellido': apellido,
-      'codigoempleado': codigoempleado,
       'dni': dni,
       'email': email,
-      'zona': zona,
       'rol': rol,
+      'asesorid': asesorid,
+      'codigoasesor': codigoasesor,
+      'zonaasignada': zonaasignada,
+      'especialidad': especialidad,
     };
   }
 }
