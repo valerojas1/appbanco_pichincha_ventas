@@ -14,9 +14,14 @@ class DashboardViewModel extends ChangeNotifier {
     _loading = true;
     notifyListeners();
 
-    _dashboard = await _asesorService.getDashboard(asesorid);
+    await recargar(asesorid);
 
     _loading = false;
+    notifyListeners();
+  }
+
+  Future<void> recargar(String asesorid) async {
+    _dashboard = await _asesorService.getDashboard(asesorid);
     notifyListeners();
   }
 }

@@ -25,7 +25,7 @@ class _DashboardViewState extends State<DashboardView> {
 
   Future<void> _recargar() async {
     if (_asesorid != null) {
-      await context.read<DashboardViewModel>().cargarDashboard(_asesorid!);
+      await context.read<DashboardViewModel>().recargar(_asesorid!);
     }
   }
 
@@ -47,6 +47,7 @@ class _DashboardViewState extends State<DashboardView> {
               : RefreshIndicator(
                   onRefresh: _recargar,
                   child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.all(16),
                     child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
