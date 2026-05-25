@@ -1,97 +1,129 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodel/cartera_viewmodel.dart';
-import '../../model/cliente_cartera_model.dart';
+import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
 
-class CarteraDiariaScreen extends StatelessWidget {
+class CarteraDiariaScreen extends StatefulWidget {
   const CarteraDiariaScreen({super.key});
 
   @override
+  State<CarteraDiariaScreen> createState() => _CarteraDiariaScreenState();
+}
+
+class _CarteraDiariaScreenState extends State<CarteraDiariaScreen> {
+  @override
+  void initState() {
+    super.initState();
+    final oficial = context.read<AuthOficialViewModel>().oficial;
+    if (oficial != null) {
+      context.read<CarteraViewModel>().cargarRuta(oficial.userid);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final vm = Provider.of<CarteraViewModel>(context);
+    final vm = context.watch<CarteraViewModel>();
 
     return Scaffold(
       backgroundColor: AppTheme.fondoOscuro,
       appBar: AppBar(
         title: const Text(
           'Cartera del Día',
-          style: TextStyle(
-              color: AppTheme.amarillo, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: AppTheme.amarillo, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout, color: AppTheme.amarillo),
             tooltip: 'Cerrar sesión',
-            onPressed: () =>
-                Navigator.pushReplacementNamed(context, '/login'),
+            onPressed: () {
+              context.read<AuthOficialViewModel>().logout();
+              Navigator.pushReplacementNamed(context, '/login');
+            },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Resumen del día
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.superficie,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                  color: AppTheme.amarillo.withOpacity(0.2)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+      body: vm.loading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.amarillo))
+          : Column(
               children: [
-                _Contador(
-                    valor: vm.totalVisitas,
-                    label: 'Total',
-                    color: Colors.white),
-                _Divisor(),
-                _Contador(
-                    valor: vm.visitados,
-                    label: 'Visitados',
-                    color: AppTheme.azulVisitado),
-                _Divisor(),
-                _Contador(
-                    valor: vm.pendientes,
-                    label: 'Pendientes',
-                    color: AppTheme.verdePendiente),
+                Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppTheme.superficie,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: AppTheme.amarillo.withOpacity(0.2)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _Contador(
+                          valor: vm.totalVisitas,
+                          label: 'Total',
+                          color: Colors.white),
+                      _Divisor(),
+                      _Contador(
+                          valor: vm.visitados,
+                          label: 'Visitados',
+                          color: AppTheme.azulVisitado),
+                      _Divisor(),
+                      _Contador(
+                          valor: vm.pendientes,
+                          label: 'Pendientes',
+                          color: AppTheme.verdePendiente),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: vm.rutas.isEmpty
+                      ? const Center(child: Text('Sin visitas para hoy',
+                          style: TextStyle(color: Colors.white54)))
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: vm.rutas.length,
+                          itemBuilder: (context, index) {
+                            final ruta = vm.rutas[index];
+                            return _TarjetaCliente(
+                              nombre: ruta.nombrecliente,
+                              dni: '',
+                              tipoGestion: ruta.tipogestion,
+                              estado: ruta.estadovisita,
+                              direccion: ruta.direccion,
+                              onMarcarVisitado: ruta.estadovisita == 'pendiente'
+                                  ? () => vm.marcarVisitado(ruta.rutaid)
+                                  : null,
+                            );
+                          },
+                        ),
+                ),
               ],
             ),
-          ),
-
-          // Lista de clientes
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: vm.clientes.length,
-              itemBuilder: (context, index) {
-                final cliente = vm.clientes[index];
-                return _TarjetaCliente(
-                  cliente: cliente,
-                  onMarcarVisitado: cliente.estado == 'pendiente'
-                      ? () => vm.marcarVisitado(index)
-                      : null,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
 
 class _TarjetaCliente extends StatelessWidget {
-  final ClienteCarteraModel cliente;
+  final String nombre;
+  final String dni;
+  final String tipoGestion;
+  final String estado;
+  final String direccion;
   final VoidCallback? onMarcarVisitado;
 
-  const _TarjetaCliente(
-      {required this.cliente, this.onMarcarVisitado});
+  const _TarjetaCliente({
+    required this.nombre,
+    required this.dni,
+    required this.tipoGestion,
+    required this.estado,
+    required this.direccion,
+    this.onMarcarVisitado,
+  });
 
   Color get _colorTipo {
-    switch (cliente.tipoGestion) {
+    switch (tipoGestion) {
       case 'renovacion':
         return AppTheme.amarillo;
       case 'nuevo':
@@ -105,7 +137,7 @@ class _TarjetaCliente extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final esVisitado = cliente.estado == 'visitado';
+    final esVisitado = estado == 'visitado';
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -121,24 +153,21 @@ class _TarjetaCliente extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Avatar inicial
           CircleAvatar(
             backgroundColor: _colorTipo.withOpacity(0.2),
             child: Text(
-              cliente.nombre[0],
+              nombre.isNotEmpty ? nombre[0] : '?',
               style: TextStyle(
                   color: _colorTipo, fontWeight: FontWeight.bold),
             ),
           ),
           const SizedBox(width: 12),
-
-          // Info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  cliente.nombre,
+                  nombre,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -149,11 +178,11 @@ class _TarjetaCliente extends StatelessWidget {
                 Row(
                   children: [
                     _Badge(
-                        texto: cliente.tipoGestion.toUpperCase(),
+                        texto: tipoGestion.toUpperCase(),
                         color: _colorTipo),
                     const SizedBox(width: 6),
                     _Badge(
-                      texto: cliente.estado.toUpperCase(),
+                      texto: estado.toUpperCase(),
                       color: esVisitado
                           ? AppTheme.azulVisitado
                           : AppTheme.verdePendiente,
@@ -162,15 +191,13 @@ class _TarjetaCliente extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  cliente.direccion,
+                  direccion,
                   style: const TextStyle(
                       color: Colors.white38, fontSize: 11),
                 ),
               ],
             ),
           ),
-
-          // Acción
           if (onMarcarVisitado != null)
             IconButton(
               icon: const Icon(Icons.check_circle_outline,
@@ -235,9 +262,6 @@ class _Contador extends StatelessWidget {
 class _Divisor extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-        height: 36,
-        width: 1,
-        color: Colors.white12);
+    return Container(height: 36, width: 1, color: Colors.white12);
   }
 }

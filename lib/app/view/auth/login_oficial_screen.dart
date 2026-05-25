@@ -34,7 +34,7 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (vm.state == AuthOficialState.success) {
                   vm.reset();
-                  Navigator.pushReplacementNamed(context, '/cartera');
+                  Navigator.pushReplacementNamed(context, '/dashboard');
                 }
               });
 
@@ -176,20 +176,7 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
                           child: const Text('ACCEDER AL PORTAL'),
                         ),
 
-                  const SizedBox(height: 24),
 
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.amarillo.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Demo S9 — Código: OFC-001 | Pass: oficial123',
-                      style: TextStyle(fontSize: 11, color: Colors.white38),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
                 ],
               );
             },

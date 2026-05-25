@@ -1,30 +1,36 @@
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
+import '../model/oficial_model.dart';
 
 enum AuthOficialState { idle, loading, success, error }
 
 class AuthOficialViewModel extends ChangeNotifier {
+  final AuthService _authService = AuthService();
   AuthOficialState _state = AuthOficialState.idle;
   String _errorMessage = '';
+  OficialModel? _oficial;
 
   AuthOficialState get state => _state;
   String get errorMessage => _errorMessage;
-
-  // Credenciales hardcodeadas para S9
-  static const String _codigoValido = 'OFC-001';
-  static const String _passwordValida = 'oficial123';
+  OficialModel? get oficial => _oficial;
 
   Future<void> login(String codigo, String password) async {
     _state = AuthOficialState.loading;
     _errorMessage = '';
     notifyListeners();
 
-    await Future.delayed(const Duration(milliseconds: 800));
-
-    if (codigo == _codigoValido && password == _passwordValida) {
-      _state = AuthOficialState.success;
-    } else {
+    try {
+      final user = await _authService.login(codigo, password);
+      if (user != null) {
+        _oficial = user;
+        _state = AuthOficialState.success;
+      } else {
+        _state = AuthOficialState.error;
+        _errorMessage = 'Código o contraseña incorrectos';
+      }
+    } catch (e) {
       _state = AuthOficialState.error;
-      _errorMessage = 'Código o contraseña incorrectos';
+      _errorMessage = 'Error de conexión';
     }
     notifyListeners();
   }
@@ -32,6 +38,12 @@ class AuthOficialViewModel extends ChangeNotifier {
   void reset() {
     _state = AuthOficialState.idle;
     _errorMessage = '';
+    notifyListeners();
+  }
+
+  void logout() {
+    _oficial = null;
+    _state = AuthOficialState.idle;
     notifyListeners();
   }
 }

@@ -1,60 +1,46 @@
 import 'package:flutter/material.dart';
-import '../model/cliente_cartera_model.dart';
+import '../services/ruta_service.dart';
+import '../model/ruta_planificada_model.dart';
 
 class CarteraViewModel extends ChangeNotifier {
-  // Lista hardcodeada de 5 clientes — S9
-  final List<ClienteCarteraModel> clientes = [
-    ClienteCarteraModel(
-      nombre: 'María Elena Torres',
-      dni: '45678901',
-      tipoGestion: 'renovacion',
-      estado: 'pendiente',
-      direccion: 'Jr. Huancayo 234, El Tambo',
-    ),
-    ClienteCarteraModel(
-      nombre: 'Roberto Quispe Huamán',
-      dni: '32145678',
-      tipoGestion: 'nuevo',
-      estado: 'pendiente',
-      direccion: 'Av. Ferrocarril 890, Huancayo',
-    ),
-    ClienteCarteraModel(
-      nombre: 'Carmen Rosa Sulca',
-      dni: '56789012',
-      tipoGestion: 'cobranza',
-      estado: 'visitado',
-      direccion: 'Ca. Real 456, Chilca',
-    ),
-    ClienteCarteraModel(
-      nombre: 'Luis Alberto Poma',
-      dni: '78901234',
-      tipoGestion: 'renovacion',
-      estado: 'visitado',
-      direccion: 'Jr. Loreto 123, Huancayo',
-    ),
-    ClienteCarteraModel(
-      nombre: 'Ana Sofía Mendoza',
-      dni: '90123456',
-      tipoGestion: 'nuevo',
-      estado: 'pendiente',
-      direccion: 'Av. Giráldez 567, Huancayo',
-    ),
-  ];
+  final RutaService _rutaService = RutaService();
+  List<RutaPlanificadaModel> _rutas = [];
+  bool _loading = false;
 
-  // Contadores derivados
-  int get totalVisitas => clientes.length;
-  int get visitados => clientes.where((c) => c.estado == 'visitado').length;
-  int get pendientes => clientes.where((c) => c.estado == 'pendiente').length;
+  List<RutaPlanificadaModel> get rutas => _rutas;
+  bool get loading => _loading;
+  int get totalVisitas => _rutas.length;
+  int get visitados => _rutas.where((r) => r.estadovisita == 'visitado').length;
+  int get pendientes => _rutas.where((r) => r.estadovisita == 'pendiente').length;
 
-  // Cambiar estado de un cliente
-  void marcarVisitado(int index) {
-    clientes[index] = ClienteCarteraModel(
-      nombre: clientes[index].nombre,
-      dni: clientes[index].dni,
-      tipoGestion: clientes[index].tipoGestion,
-      estado: 'visitado',
-      direccion: clientes[index].direccion,
-    );
+  Future<void> cargarRuta(String asesorid) async {
+    _loading = true;
     notifyListeners();
+
+    _rutas = await _rutaService.getRutaHoy(asesorid);
+
+    _loading = false;
+    notifyListeners();
+  }
+
+  Future<void> marcarVisitado(String rutaid) async {
+    final success = await _rutaService.actualizarEstadoVisita(rutaid, 'visitado');
+    if (success) {
+      final index = _rutas.indexWhere((r) => r.rutaid == rutaid);
+      if (index != -1) {
+        _rutas[index] = RutaPlanificadaModel(
+          rutaid: _rutas[index].rutaid,
+          asesorid: _rutas[index].asesorid,
+          clienteid: _rutas[index].clienteid,
+          nombrecliente: _rutas[index].nombrecliente,
+          direccion: _rutas[index].direccion,
+          tipogestion: _rutas[index].tipogestion,
+          estadovisita: 'visitado',
+          fecharuta: _rutas[index].fecharuta,
+          observaciones: _rutas[index].observaciones,
+        );
+        notifyListeners();
+      }
+    }
   }
 }
