@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../model/campana_activa_model.dart';
+import '../../model/preevaluacion_resultado_model.dart';
 import '../../viewmodel/dashboard_viewmodel.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/oficial_scaffold.dart';
+import 'ficha_cliente_screen.dart';
+import 'pre_evaluacion_screen.dart';
+import 'widgets/campanas_activas_section.dart';
 
 class DashboardView extends StatefulWidget {
-  const DashboardView({super.key});
+  final bool embedded;
+
+  const DashboardView({super.key, this.embedded = false});
 
   @override
   State<DashboardView> createState() => _DashboardViewState();
@@ -33,12 +41,9 @@ class _DashboardViewState extends State<DashboardView> {
   Widget build(BuildContext context) {
     final vm = context.watch<DashboardViewModel>();
 
-    return Scaffold(
-      backgroundColor: AppTheme.fondoOscuro,
-      appBar: AppBar(
-        title: const Text('Dashboard Asesor',
-            style: TextStyle(color: AppTheme.amarillo, fontWeight: FontWeight.bold)),
-      ),
+    return OficialScaffold(
+      embedded: widget.embedded,
+      title: 'Dashboard Asesor',
       body: vm.loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.amarillo))
           : vm.dashboard == null
@@ -58,6 +63,11 @@ class _DashboardViewState extends State<DashboardView> {
                             color: Colors.white,
                             fontSize: 22,
                             fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 24),
+                      CampanasActivasSection(
+                        campanas: vm.campanas,
+                        onGestionar: (c) => _gestionarCampana(context, c),
                       ),
                       const SizedBox(height: 24),
                       _KpiCard(
@@ -106,6 +116,39 @@ class _DashboardViewState extends State<DashboardView> {
                 ),
               ),
     );
+  }
+
+  void _gestionarCampana(BuildContext context, CampanaActivaModel c) {
+    if (c.clienteid != null && c.clienteid!.isNotEmpty) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => FichaClienteScreen(
+            args: FichaClienteArgs(
+              clienteId: c.clienteid,
+              documento: '',
+              nombreFallback: c.nombrecliente,
+            ),
+          ),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PreEvaluacionScreen(
+            prefill: ProspectoSolicitudPrefill(
+              dni: '',
+              nombres: c.nombrecliente,
+              tiponegocio: '',
+              ingresos: 0,
+              destino: 'capital_trabajo',
+              monto: c.montooferta,
+            ),
+          ),
+        ),
+      );
+    }
   }
 }
 

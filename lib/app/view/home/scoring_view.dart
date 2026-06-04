@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodel/scoring_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/oficial_scaffold.dart';
 
 class ScoringView extends StatefulWidget {
-  const ScoringView({super.key});
+  final bool embedded;
+
+  const ScoringView({super.key, this.embedded = false});
 
   @override
   State<ScoringView> createState() => _ScoringViewState();
@@ -14,6 +17,21 @@ class _ScoringViewState extends State<ScoringView> {
   final _fichaidController = TextEditingController();
   final _montoController = TextEditingController();
   final _plazoController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _aplicarPrefill());
+  }
+
+  void _aplicarPrefill() {
+    final pre = context.read<ScoringViewModel>().prefill;
+    if (pre == null) return;
+    _fichaidController.text = pre.fichaid;
+    _montoController.text = pre.monto.toStringAsFixed(0);
+    _plazoController.text = pre.plazoMeses.toString();
+    context.read<ScoringViewModel>().limpiarPrefill();
+  }
 
   @override
   void dispose() {
@@ -27,12 +45,9 @@ class _ScoringViewState extends State<ScoringView> {
   Widget build(BuildContext context) {
     final vm = context.watch<ScoringViewModel>();
 
-    return Scaffold(
-      backgroundColor: AppTheme.fondoOscuro,
-      appBar: AppBar(
-        title: const Text('Evaluación de Crédito',
-            style: TextStyle(color: AppTheme.amarillo, fontWeight: FontWeight.bold)),
-      ),
+    return OficialScaffold(
+      embedded: widget.embedded,
+      title: 'Evaluación de Crédito',
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

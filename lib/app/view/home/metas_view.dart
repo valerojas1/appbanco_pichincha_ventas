@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import '../../viewmodel/metas_viewmodel.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/oficial_scaffold.dart';
 
 class MetasView extends StatefulWidget {
-  const MetasView({super.key});
+  final bool embedded;
+
+  const MetasView({super.key, this.embedded = false});
 
   @override
   State<MetasView> createState() => _MetasViewState();
@@ -30,12 +33,9 @@ class _MetasViewState extends State<MetasView> {
       'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
     ];
 
-    return Scaffold(
-      backgroundColor: AppTheme.fondoOscuro,
-      appBar: AppBar(
-        title: const Text('Metas del Mes',
-            style: TextStyle(color: AppTheme.amarillo, fontWeight: FontWeight.bold)),
-      ),
+    return OficialScaffold(
+      embedded: widget.embedded,
+      title: 'Metas del Mes',
       body: vm.loading
           ? const Center(child: CircularProgressIndicator(color: AppTheme.amarillo))
           : vm.metas == null

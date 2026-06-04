@@ -1,34 +1,54 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/auth_constants.dart';
 import '../model/oficial_model.dart';
 
 class AuthService {
   final SupabaseClient _client = Supabase.instance.client;
 
-  Future<OficialModel?> login(String dni, String password) async {
+  Session? get currentSession => _client.auth.currentSession;
+
+  Future<OficialModel?> loginWithCodigoEmpleado(
+    String codigoEmpleado,
+    String password,
+  ) async {
+    final codigo = codigoEmpleado.trim();
+    if (codigo.isEmpty) return null;
+
+    final email = AuthConstants.emailFromCodigoEmpleado(codigo);
+
+    final authResponse = await _client.auth.signInWithPassword(
+      email: email,
+      password: password,
+    );
+
+    final authUser = authResponse.user;
+    if (authUser == null) return null;
+
+    return _fetchPerfilPorAuthUser(authUser.id);
+  }
+
+  Future<OficialModel?> restoreFromCurrentSession() async {
+    final session = _client.auth.currentSession;
+    if (session == null) return null;
+    return _fetchPerfilPorAuthUser(session.user.id);
+  }
+
+  Future<OficialModel?> _fetchPerfilPorAuthUser(String authUserId) async {
     try {
-      final user = await _client
-          .from('usuariosmock')
+      final row = await _client
+          .from('vwperfilasesor')
           .select()
-          .eq('dni', dni)
-          .eq('passwordhash', password)
-          .eq('rol', 'asesor')
-          .single();
+          .eq('auth_user_id', authUserId)
+          .maybeSingle();
 
-      final asesor = await _client
-          .from('asesoresnegocio')
-          .select()
-          .eq('userid', user['id'])
-          .single();
-
-      return OficialModel.fromJson({
-        ...user,
-        'asesorid': asesor['id'],
-        'codigoasesor': asesor['codigoasesor'],
-        'zonaasignada': asesor['zonaasignada'],
-        'especialidad': asesor['especialidad'],
-      });
-    } catch (e) {
+      if (row == null) return null;
+      return OficialModel.fromJson(Map<String, dynamic>.from(row));
+    } catch (_) {
       return null;
     }
+  }
+
+  Future<void> signOut() async {
+    await _client.auth.signOut();
   }
 }

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "659682018880",
+    "project_id": "pichincha-ventas-oficial",
+    "storage_bucket": "pichincha-ventas-oficial.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659682018880:android:abed655b29b04e220001a5",
+        "android_client_info": {
+          "package_name": "com.example.appbanco_pichincha_ventas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBnHe9CHFOsmK_imtkpWHfDMKKH4vpoBk4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

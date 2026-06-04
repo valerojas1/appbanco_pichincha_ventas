@@ -58,4 +58,9 @@ class FichaService {
     final fichas = await _getOfflineFichas();
     return fichas.length;
   }
+
+  Future<void> clearOfflineCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offlineKey);
+  }
 }

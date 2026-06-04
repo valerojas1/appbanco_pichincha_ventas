@@ -3,9 +3,12 @@ import 'package:provider/provider.dart';
 import '../../viewmodel/ficha_viewmodel.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/oficial_scaffold.dart';
 
 class FichaView extends StatefulWidget {
-  const FichaView({super.key});
+  final bool embedded;
+
+  const FichaView({super.key, this.embedded = false});
 
   @override
   State<FichaView> createState() => _FichaViewState();
@@ -99,21 +102,20 @@ class _FichaViewState extends State<FichaView> {
   Widget build(BuildContext context) {
     final vm = context.watch<FichaViewModel>();
 
-    return Scaffold(
-      backgroundColor: AppTheme.fondoOscuro,
-      appBar: AppBar(
-        title: const Text('Ficha de Campo',
-            style: TextStyle(color: AppTheme.amarillo, fontWeight: FontWeight.bold)),
-        actions: [
-          if (vm.offlineCount > 0)
-            TextButton.icon(
-              onPressed: () => vm.sincronizar(),
-              icon: const Icon(Icons.sync, color: AppTheme.amarillo, size: 18),
-              label: Text('${vm.offlineCount}',
-                  style: const TextStyle(color: AppTheme.amarillo, fontSize: 13)),
+    return OficialScaffold(
+      embedded: widget.embedded,
+      title: 'Ficha de Campo',
+      actions: [
+        if (vm.offlineCount > 0)
+          TextButton.icon(
+            onPressed: () => vm.sincronizar(),
+            icon: const Icon(Icons.sync, color: AppTheme.amarillo, size: 18),
+            label: Text(
+              '${vm.offlineCount}',
+              style: const TextStyle(color: AppTheme.amarillo, fontSize: 13),
             ),
-        ],
-      ),
+          ),
+      ],
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(

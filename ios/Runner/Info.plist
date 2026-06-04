@@ -59,6 +59,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Necesitamos tu ubicación para planificar rutas y registrar visitas.</string>
+	<key>io.flutter.embedded_views_preview</key>
+	<true/>
+	<key>GMSApiKey</key>
+	<string>YOUR_GOOGLE_MAPS_API_KEY</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>waze</string>
+		<string>comgooglemaps</string>
+		<string>googlemaps</string>
+	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
