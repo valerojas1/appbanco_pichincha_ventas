@@ -1,7 +1,12 @@
 /**
  * Envía notificación FCM (API HTTP v1 — sin clave Legacy).
- * Secret en Supabase: FCM_SERVICE_ACCOUNT_JSON = contenido del JSON de cuenta de servicio
- * (Firebase → Configuración → Cuentas de servicio → Generar nueva clave privada)
+ *
+ * Modos de entrada:
+ * 1) Manual: { "solicitud_id": "uuid", "tipo": "aprobado" }
+ * 2) Database Webhook (UPDATE en solicitudescredito): payload con record / old_record
+ *
+ * Secret: FCM_SERVICE_ACCOUNT_JSON (ver docs/GUIA_FCM_FIREBASE.md)
+ * Opcional: WEBHOOK_SECRET — header x-webhook-secret debe coincidir
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { GoogleAuth } from "npm:google-auth-library@9.15.1";
@@ -9,14 +14,88 @@ import { GoogleAuth } from "npm:google-auth-library@9.15.1";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-webhook-secret",
 };
 
 type TipoNotif =
   | "recibido_comite"
   | "aprobado"
+  | "condicionado"
   | "rechazado"
   | "desembolsado";
+
+const TIPOS_VALIDOS: TipoNotif[] = [
+  "recibido_comite",
+  "aprobado",
+  "condicionado",
+  "rechazado",
+  "desembolsado",
+];
+
+function tipoDesdeEstado(estado: string): TipoNotif | null {
+  switch (estado) {
+    case "recibido_comite":
+    case "en_comite":
+      return "recibido_comite";
+    case "aprobada":
+      return "aprobado";
+    case "condicionada":
+      return "condicionado";
+    case "rechazada":
+      return "rechazado";
+    case "desembolsada":
+      return "desembolsado";
+    default:
+      return null;
+  }
+}
+
+type PayloadEntrada = {
+  solicitudId: string;
+  tipo: TipoNotif;
+  origen: "manual" | "webhook";
+};
+
+function parseEntrada(body: Record<string, unknown>): PayloadEntrada | null {
+  const solicitudManual = String(body.solicitud_id ?? "");
+  const tipoManual = body.tipo as string;
+  if (
+    solicitudManual &&
+    tipoManual &&
+    TIPOS_VALIDOS.includes(tipoManual as TipoNotif)
+  ) {
+    return {
+      solicitudId: solicitudManual,
+      tipo: tipoManual as TipoNotif,
+      origen: "manual",
+    };
+  }
+
+  if (body.type !== "UPDATE") return null;
+
+  const record = body.record as Record<string, unknown> | undefined;
+  const oldRecord = body.old_record as Record<string, unknown> | undefined;
+  if (!record) return null;
+
+  const nuevoEstado = String(record.estado ?? "");
+  const viejoEstado = String(oldRecord?.estado ?? "");
+  if (!nuevoEstado || nuevoEstado === viejoEstado) return null;
+
+  const tipo = tipoDesdeEstado(nuevoEstado);
+  if (!tipo) return null;
+
+  const solicitudId = String(record.id ?? "");
+  if (!solicitudId) return null;
+
+  return { solicitudId, tipo, origen: "webhook" };
+}
+
+function verificarWebhookSecret(req: Request): boolean {
+  const esperado = Deno.env.get("WEBHOOK_SECRET");
+  if (!esperado) return true;
+  const recibido = req.headers.get("x-webhook-secret") ?? "";
+  return recibido === esperado;
+}
 
 async function obtenerAccessToken(): Promise<{ token: string; projectId: string }> {
   const raw = Deno.env.get("FCM_SERVICE_ACCOUNT_JSON");
@@ -42,7 +121,6 @@ async function obtenerAccessToken(): Promise<{ token: string; projectId: string 
   return { token, projectId };
 }
 
-/** Fallback Legacy solo si aún tienes FCM_SERVER_KEY (proyectos antiguos). */
 async function enviarLegacy(
   serverKey: string,
   deviceToken: string,
@@ -108,15 +186,29 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const body = await req.json();
-    const solicitudId = String(body.solicitud_id ?? "");
-    const tipo = body.tipo as TipoNotif;
-    if (!solicitudId || !tipo) {
-      return new Response(JSON.stringify({ error: "Parámetros inválidos" }), {
-        status: 400,
+    if (!verificarWebhookSecret(req)) {
+      return new Response(JSON.stringify({ error: "Webhook no autorizado" }), {
+        status: 401,
         headers: { ...cors, "Content-Type": "application/json" },
       });
     }
+
+    const body = await req.json() as Record<string, unknown>;
+    const entrada = parseEntrada(body);
+
+    if (!entrada) {
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          omitido: true,
+          mensaje:
+            "Sin notificación: estado no cambió, no es notificable, o payload inválido",
+        }),
+        { headers: { ...cors, "Content-Type": "application/json" } },
+      );
+    }
+
+    const { solicitudId, tipo, origen } = entrada;
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -126,7 +218,7 @@ Deno.serve(async (req) => {
     const { data: sol } = await supabase
       .from("solicitudescredito")
       .select(
-        "asesorid, nombres, apellidos, monto, estado, numeroexpediente, fechadesembolso, motivorechazo",
+        "asesorid, nombres, apellidos, monto, montodaprobado, codigocondicion, estado, numeroexpediente, fechadesembolso, motivorechazo",
       )
       .eq("id", solicitudId)
       .single();
@@ -142,7 +234,12 @@ Deno.serve(async (req) => {
     const deviceToken = asesor?.fcmtoken;
     if (!deviceToken) {
       return new Response(
-        JSON.stringify({ ok: false, mensaje: "Sin token FCM para el asesor" }),
+        JSON.stringify({
+          ok: false,
+          origen,
+          mensaje: "Sin token FCM para el asesor",
+          asesorid: sol.asesorid,
+        }),
         { headers: { ...cors, "Content-Type": "application/json" } },
       );
     }
@@ -159,10 +256,16 @@ Deno.serve(async (req) => {
         break;
       case "aprobado":
         title = "Crédito aprobado";
-        bodyMsg = `Aprobado: ${cliente} — S/ ${sol.monto}. ` +
+        bodyMsg = `Aprobado: ${cliente} — S/ ${sol.montodaprobado ?? sol.monto}. ` +
           (sol.fechadesembolso
             ? `Desembolso estimado: ${sol.fechadesembolso}`
             : "");
+        break;
+      case "condicionado":
+        title = "Crédito condicionado";
+        bodyMsg =
+          `Condicionado: ${cliente} — S/ ${sol.montodaprobado ?? sol.monto}. ` +
+          `Caso ${sol.codigocondicion ?? ""}`;
         break;
       case "rechazado":
         title = "Solicitud rechazada";
@@ -183,23 +286,30 @@ Deno.serve(async (req) => {
 
     const legacyKey = Deno.env.get("FCM_SERVER_KEY");
     if (legacyKey && !Deno.env.get("FCM_SERVICE_ACCOUNT_JSON")) {
-      return await enviarLegacy(
+      const res = await enviarLegacy(
         legacyKey,
         deviceToken,
         title,
         bodyMsg,
         dataPayload,
       );
+      return res;
     }
 
     const { token, projectId } = await obtenerAccessToken();
-    return await enviarV1(
+    const res = await enviarV1(
       token,
       projectId,
       deviceToken,
       title,
       bodyMsg,
       dataPayload,
+    );
+
+    const resBody = await res.clone().json();
+    return new Response(
+      JSON.stringify({ ...resBody, origen, tipo, solicitud_id: solicitudId }),
+      { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (e) {
     return new Response(

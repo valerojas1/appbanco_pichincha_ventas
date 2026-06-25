@@ -10,7 +10,8 @@ import '../../core/geocerca_util.dart';
 import '../../viewmodel/cartera_viewmodel.dart';
 import '../../viewmodel/ficha_viewmodel.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import '../../viewmodel/ruta_mapa_viewmodel.dart';
+import 'package:latlong2/latlong.dart';
 import 'widgets/resultado_visita_sheet.dart';
 
 class FichaCarteraScreen extends StatefulWidget {
@@ -84,6 +85,21 @@ class _FichaCarteraScreenState extends State<FichaCarteraScreen> {
         longitud: pos.longitude,
         direccion: _direccionController.text.trim(),
       );
+
+      if (ok && mounted) {
+        final actualizado = widget.cartera.copyWith(
+          latitud: pos.latitude,
+          longitud: pos.longitude,
+          direccion: _direccionController.text.trim(),
+        );
+        context.read<CarteraViewModel>().actualizarCoordenadasLocal(
+              widget.cartera.id,
+              latitud: pos.latitude,
+              longitud: pos.longitude,
+              direccion: _direccionController.text.trim(),
+            );
+        context.read<RutaMapaViewModel>().actualizarClienteLocal(actualizado);
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

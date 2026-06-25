@@ -6,7 +6,7 @@ import '../services/solicitud_estado_service.dart';
 class SolicitudesTableroViewModel extends ChangeNotifier {
   final SolicitudEstadoService _service = SolicitudEstadoService();
 
-  TabSolicitud _tab = TabSolicitud.enviadas;
+  TabSolicitud _tab = TabSolicitud.recibidas;
   List<SolicitudResumenModel> _lista = [];
   Map<TabSolicitud, int> _contadores = {};
   bool _cargando = false;

@@ -1,9 +1,13 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../model/perfil_oficial.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/app_logo.dart';
 import '../home/shell_oficial_screen.dart';
+import '../web/admin/admin_web_shell.dart';
 import 'login_oficial_screen.dart';
 
 class AuthGate extends StatefulWidget {
@@ -48,14 +52,25 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return const Scaffold(
         backgroundColor: AppTheme.fondoOscuro,
         body: Center(
-          child: CircularProgressIndicator(color: AppTheme.amarillo),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppLogo(size: 72),
+              SizedBox(height: 24),
+              CircularProgressIndicator(color: AppTheme.amarillo),
+            ],
+          ),
         ),
       );
     }
 
     if (vm.isAuthenticated) {
-      return const SessionActivityWrapper(
-        child: ShellOficialScreen(),
+      final esAdminWeb =
+          kIsWeb && vm.oficial?.perfil == PerfilOficial.administrador;
+      return SessionActivityWrapper(
+        child: esAdminWeb
+            ? const AdminWebShell()
+            : const ShellOficialScreen(),
       );
     }
 

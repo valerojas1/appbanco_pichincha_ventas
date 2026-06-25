@@ -2,6 +2,8 @@ import '../core/amortizacion_francesa.dart';
 
 class SolicitudCreditoData {
   String? borradorIdLocal;
+  /// ID en Supabase cuando el operador retoma una solicitud del cliente.
+  String? solicitudIdServidor;
   String asesorid;
 
   // Paso 1
@@ -24,6 +26,8 @@ class SolicitudCreditoData {
   String tipoNegocio;
   String nombreNegocio;
   String direccionNegocio;
+  double? latitudNegocio;
+  double? longitudNegocio;
   int antiguedadMeses;
   double ingresosEstimados;
   double gastosEstimados;
@@ -38,6 +42,7 @@ class SolicitudCreditoData {
   String tipoCuota;
   String tipoGarantia;
   double tea;
+  bool incluyeSeguroDesgravamen;
 
   // Paso 4
   String? firmaBase64;
@@ -47,6 +52,7 @@ class SolicitudCreditoData {
 
   SolicitudCreditoData({
     this.borradorIdLocal,
+    this.solicitudIdServidor,
     this.asesorid = '',
     this.nombres = '',
     this.apellidos = '',
@@ -65,6 +71,8 @@ class SolicitudCreditoData {
     this.tipoNegocio = '',
     this.nombreNegocio = '',
     this.direccionNegocio = '',
+    this.latitudNegocio,
+    this.longitudNegocio,
     this.antiguedadMeses = 6,
     this.ingresosEstimados = 0,
     this.gastosEstimados = 0,
@@ -77,6 +85,7 @@ class SolicitudCreditoData {
     this.tipoCuota = 'fija',
     this.tipoGarantia = 'personal',
     this.tea = 28,
+    this.incluyeSeguroDesgravamen = true,
     this.firmaBase64,
     this.declaracionJurada = false,
     this.pasoActual = 0,
@@ -85,12 +94,21 @@ class SolicitudCreditoData {
   bool get requiereConyuge =>
       estadoCivil == 'casado' || estadoCivil == 'conviviente';
 
+  bool get tieneCoordenadasNegocio =>
+      latitudNegocio != null &&
+      longitudNegocio != null &&
+      latitudNegocio! >= -90 &&
+      latitudNegocio! <= 90 &&
+      longitudNegocio! >= -180 &&
+      longitudNegocio! <= 180;
+
   String get nombreCompleto => '$nombres $apellidos'.trim();
 
   double get cuotaMensual => AmortizacionFrancesa.calcularCuota(
         monto: monto,
         teaPorcentaje: tea,
         plazoMeses: plazoMeses,
+        incluyeSeguroDesgravamen: incluyeSeguroDesgravamen,
       );
 
   double get totalPagar => AmortizacionFrancesa.totalAPagar(
@@ -117,6 +135,7 @@ class SolicitudCreditoData {
 
   Map<String, dynamic> toJson() => {
         'borradorIdLocal': borradorIdLocal,
+        'solicitudIdServidor': solicitudIdServidor,
         'asesorid': asesorid,
         'nombres': nombres,
         'apellidos': apellidos,
@@ -135,6 +154,8 @@ class SolicitudCreditoData {
         'tipoNegocio': tipoNegocio,
         'nombreNegocio': nombreNegocio,
         'direccionNegocio': direccionNegocio,
+        'latitudNegocio': latitudNegocio,
+        'longitudNegocio': longitudNegocio,
         'antiguedadMeses': antiguedadMeses,
         'ingresosEstimados': ingresosEstimados,
         'gastosEstimados': gastosEstimados,
@@ -147,6 +168,7 @@ class SolicitudCreditoData {
         'tipoCuota': tipoCuota,
         'tipoGarantia': tipoGarantia,
         'tea': tea,
+        'incluyeSeguroDesgravamen': incluyeSeguroDesgravamen,
         'firmaBase64': firmaBase64,
         'declaracionJurada': declaracionJurada,
         'pasoActual': pasoActual,
@@ -155,6 +177,7 @@ class SolicitudCreditoData {
   factory SolicitudCreditoData.fromJson(Map<String, dynamic> json) {
     return SolicitudCreditoData(
       borradorIdLocal: json['borradorIdLocal']?.toString(),
+      solicitudIdServidor: json['solicitudIdServidor']?.toString(),
       asesorid: json['asesorid']?.toString() ?? '',
       nombres: json['nombres']?.toString() ?? '',
       apellidos: json['apellidos']?.toString() ?? '',
@@ -175,6 +198,8 @@ class SolicitudCreditoData {
       tipoNegocio: json['tipoNegocio']?.toString() ?? '',
       nombreNegocio: json['nombreNegocio']?.toString() ?? '',
       direccionNegocio: json['direccionNegocio']?.toString() ?? '',
+      latitudNegocio: _toNullableDouble(json['latitudNegocio']),
+      longitudNegocio: _toNullableDouble(json['longitudNegocio']),
       antiguedadMeses: json['antiguedadMeses'] is int
           ? json['antiguedadMeses'] as int
           : int.tryParse(json['antiguedadMeses']?.toString() ?? '') ?? 6,
@@ -191,6 +216,7 @@ class SolicitudCreditoData {
       tipoCuota: json['tipoCuota']?.toString() ?? 'fija',
       tipoGarantia: json['tipoGarantia']?.toString() ?? 'personal',
       tea: _toDouble(json['tea'], 28),
+      incluyeSeguroDesgravamen: json['incluyeSeguroDesgravamen'] != false,
       firmaBase64: json['firmaBase64']?.toString(),
       declaracionJurada: json['declaracionJurada'] == true,
       pasoActual: json['pasoActual'] is int
@@ -202,10 +228,14 @@ class SolicitudCreditoData {
   Map<String, dynamic> toSupabasePayload() => {
         'asesorid': asesorid,
         'estado': 'documentos_pendientes',
+        'origen': solicitudIdServidor != null ? 'app_cliente' : 'app_ventas',
         'nombres': nombres,
         'apellidos': apellidos,
         'dni': dni,
-        'fechanacimiento': fechaNacimiento!.toIso8601String().split('T').first,
+        'fechanacimiento': fechaNacimiento!
+            .toIso8601String()
+            .split('T')
+            .first,
         'estadocivil': estadoCivil,
         'gradoinstruccion': gradoInstruccion,
         'telefono': telefono,
@@ -218,6 +248,8 @@ class SolicitudCreditoData {
         'tiponegocio': tipoNegocio,
         'nombrenegocio': nombreNegocio,
         'direccionnegocio': direccionNegocio,
+        'latitudnegocio': ?latitudNegocio,
+        'longitudnegocio': ?longitudNegocio,
         'antiguedadmeses': antiguedadMeses,
         'ingresosestimados': ingresosEstimados,
         'gastosestimados': gastosEstimados,
@@ -230,11 +262,68 @@ class SolicitudCreditoData {
         'tipocuota': tipoCuota,
         'tipogarantia': tipoGarantia,
         'tea': tea,
+        'incluyesegurodesgravamen': incluyeSeguroDesgravamen,
         'cuotamensual': cuotaMensual,
         'totalintereses': totalIntereses,
         'firmadigital': firmaBase64,
         'declaracionjurada': declaracionJurada,
       };
+
+  /// Carga datos parciales enviados por el cliente para completar en campo.
+  factory SolicitudCreditoData.fromSupabaseRow(
+    Map<String, dynamic> json, {
+    required String asesorid,
+  }) {
+    DateTime? fn;
+    final fnRaw = json['fechanacimiento'];
+    if (fnRaw != null) {
+      fn = DateTime.tryParse(fnRaw.toString());
+    }
+
+    return SolicitudCreditoData(
+      solicitudIdServidor: json['id']?.toString(),
+      asesorid: asesorid,
+      nombres: json['nombres']?.toString() ?? '',
+      apellidos: json['apellidos']?.toString() ?? '',
+      dni: json['dni']?.toString() ?? '',
+      fechaNacimiento: fn,
+      estadoCivil: json['estadocivil']?.toString() ?? 'soltero',
+      gradoInstruccion: json['gradoinstruccion']?.toString() ?? 'secundaria',
+      telefono: json['telefono']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      conyugeNombres: json['conyugenombres']?.toString() ?? '',
+      conyugeDni: json['conyugedni']?.toString() ?? '',
+      garanteNombres: json['garantenombres']?.toString() ?? '',
+      garanteDni: json['garantedni']?.toString() ?? '',
+      garanteTelefono: json['garantetelefono']?.toString() ?? '',
+      incluirGarante: (json['garantenombres']?.toString() ?? '').isNotEmpty,
+      tipoNegocio: json['tiponegocio']?.toString() ?? '',
+      nombreNegocio: json['nombrenegocio']?.toString() ?? '',
+      direccionNegocio: json['direccionnegocio']?.toString() ?? '',
+      latitudNegocio: _toNullableDouble(json['latitudnegocio']),
+      longitudNegocio: _toNullableDouble(json['longitudnegocio']),
+      antiguedadMeses: json['antiguedadmeses'] is int
+          ? json['antiguedadmeses'] as int
+          : int.tryParse(json['antiguedadmeses']?.toString() ?? '') ?? 6,
+      ingresosEstimados: _toDouble(json['ingresosestimados']),
+      gastosEstimados: _toDouble(json['gastosestimados']),
+      patrimonio: _toNullableDouble(json['patrimonio']),
+      destinoCredito: json['destinocredito']?.toString() ?? '',
+      codigoCiiu: json['codigociiu']?.toString() ?? '4711',
+      monto: _toDouble(json['monto'], 5000),
+      plazoMeses: json['plazomeses'] is int
+          ? json['plazomeses'] as int
+          : int.tryParse(json['plazomeses']?.toString() ?? '') ?? 12,
+      moneda: json['moneda']?.toString() ?? 'PEN',
+      tipoCuota: json['tipocuota']?.toString() ?? 'fija',
+      tipoGarantia: json['tipogarantia']?.toString() ?? 'personal',
+      tea: _toDouble(json['tea'], 28),
+      incluyeSeguroDesgravamen: json['incluyesegurodesgravamen'] != false,
+      firmaBase64: json['firmadigital']?.toString(),
+      declaracionJurada: json['declaracionjurada'] == true,
+      pasoActual: 0,
+    );
+  }
 
   static double _toDouble(dynamic v, [double def = 0]) {
     if (v is num) return v.toDouble();

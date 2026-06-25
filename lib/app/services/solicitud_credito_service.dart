@@ -14,7 +14,7 @@ class SolicitudCreditoService {
     return r.isNotEmpty && !r.contains(ConnectivityResult.none);
   }
 
-  /// Devuelve el ID de la solicitud creada, o null si quedó en cola offline.
+  /// Inserta nueva solicitud o actualiza una retomada del cliente.
   Future<String?> enviarSolicitud(SolicitudCreditoData data) async {
     if (!await hayConexion) {
       await _borradorDb.encolarEnvio(data);
@@ -23,6 +23,20 @@ class SolicitudCreditoService {
     try {
       final payload = data.toSupabasePayload();
       payload['estado'] = 'documentos_pendientes';
+      payload['updatedat'] = DateTime.now().toIso8601String();
+
+      if (data.solicitudIdServidor != null) {
+        await _client
+            .from('solicitudescredito')
+            .update(payload)
+            .eq('id', data.solicitudIdServidor!)
+            .eq('asesorid', data.asesorid);
+        if (data.borradorIdLocal != null) {
+          await _borradorDb.eliminarBorrador(data.borradorIdLocal!);
+        }
+        return data.solicitudIdServidor;
+      }
+
       final row = await _client
           .from('solicitudescredito')
           .insert(payload)

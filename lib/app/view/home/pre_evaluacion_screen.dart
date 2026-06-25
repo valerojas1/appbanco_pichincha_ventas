@@ -4,6 +4,7 @@ import '../../model/campana_activa_model.dart';
 import '../../model/preevaluacion_resultado_model.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/oficial_scaffold.dart';
+import '../../ui/widgets/monto_editable_slider.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../viewmodel/prospeccion_viewmodel.dart';
 import 'ficha_cliente_screen.dart';
@@ -230,17 +231,11 @@ class _PreEvaluacionScreenState extends State<PreEvaluacionScreen> {
                 },
               ),
               const SizedBox(height: 16),
-              Text(
-                'Monto solicitado: S/ ${_monto.toStringAsFixed(0)}',
-                style: const TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              Slider(
+              MontoEditableSlider(
                 value: _monto,
                 min: 500,
                 max: 50000,
-                divisions: 99,
-                activeColor: AppTheme.amarillo,
-                label: 'S/ ${_monto.toStringAsFixed(0)}',
+                divisions: 495,
                 onChanged: (v) => setState(() => _monto = v),
               ),
               const SizedBox(height: 8),
@@ -305,7 +300,8 @@ class _PreEvaluacionScreenState extends State<PreEvaluacionScreen> {
                     ],
                   ),
                 ),
-                if (resultado.esApto && vm.ultimoProspecto != null) ...[
+                if ((resultado.esApto || resultado.esRevisar) &&
+                    vm.ultimoProspecto != null) ...[
                   const SizedBox(height: 12),
                   ElevatedButton(
                     onPressed: () async {

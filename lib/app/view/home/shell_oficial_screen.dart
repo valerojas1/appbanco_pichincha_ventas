@@ -5,6 +5,7 @@ import '../../navigation/menu_config.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../viewmodel/offline_sync_viewmodel.dart';
 import '../../viewmodel/clientes_credito_viewmodel.dart';
+import '../../viewmodel/bandeja_solicitudes_cliente_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
 import 'clientes_pichincha_tab.dart';
 import 'prospectos_credito_tab.dart';
@@ -18,6 +19,7 @@ import 'pre_evaluacion_screen.dart';
 import 'cliente_desertor_screen.dart';
 import 'solicitud_credito_wizard_screen.dart';
 import 'borradores_solicitud_screen.dart';
+import 'bandeja_solicitudes_cliente_screen.dart';
 import 'seleccion_solicitud_documentos_screen.dart';
 import 'consulta_buro_screen.dart';
 import 'cartera_vencida_screen.dart';
@@ -42,6 +44,10 @@ class _ShellOficialScreenState extends State<ShellOficialScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_rutaActual == AppRouter.home) {
         context.read<ClientesCreditoViewModel>().cargarTodo();
+        final asesor = context.read<AuthOficialViewModel>().oficial?.asesorid;
+        if (asesor != null) {
+          context.read<BandejaSolicitudesClienteViewModel>().cargar(asesor);
+        }
       }
       context.read<OfflineSyncViewModel>().actualizarContadores();
     });
@@ -123,6 +129,8 @@ class _ShellOficialScreenState extends State<ShellOficialScreen> {
         return const SolicitudCreditoWizardScreen();
       case AppRouter.borradoresSolicitud:
         return const BorradoresSolicitudScreen(embedded: true);
+      case AppRouter.bandejaSolicitudesCliente:
+        return const BandejaSolicitudesClienteScreen(embedded: true);
       case AppRouter.documentosSolicitud:
         return const SeleccionSolicitudDocumentosScreen(embedded: true);
       default:
@@ -237,6 +245,19 @@ class _ShellOficialScreenState extends State<ShellOficialScreen> {
                         setState(() => _rutaActual = item.route);
                         if (item.route == AppRouter.home) {
                           context.read<ClientesCreditoViewModel>().cargarTodo();
+                          final asesor = oficial.asesorid;
+                          if (asesor.isNotEmpty) {
+                            context
+                                .read<BandejaSolicitudesClienteViewModel>()
+                                .cargar(asesor);
+                          }
+                        }
+                        if (item.route == AppRouter.bandejaSolicitudesCliente) {
+                          if (oficial.asesorid.isNotEmpty) {
+                            context
+                                .read<BandejaSolicitudesClienteViewModel>()
+                                .cargar(oficial.asesorid);
+                          }
                         }
                         Navigator.pop(context);
                       },
@@ -284,17 +305,32 @@ class _ClientesProspectosTabsState extends State<_ClientesProspectosTabs>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (!_tabController.indexIsChanging && _tabController.index == 2) {
+      final asesor =
+          context.read<AuthOficialViewModel>().oficial?.asesorid;
+      if (asesor != null) {
+        context.read<BandejaSolicitudesClienteViewModel>().cargar(asesor);
+      }
+    }
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final pendientes =
+        context.watch<BandejaSolicitudesClienteViewModel>().contadorPendientes;
+
     return Column(
       children: [
         TabBar(
@@ -302,14 +338,27 @@ class _ClientesProspectosTabsState extends State<_ClientesProspectosTabs>
           indicatorColor: AppTheme.amarillo,
           labelColor: AppTheme.amarillo,
           unselectedLabelColor: Colors.white54,
-          tabs: const [
-            Tab(
+          isScrollable: true,
+          tabs: [
+            const Tab(
               icon: Icon(Icons.account_balance, size: 20),
               text: 'Clientes Pichincha',
             ),
-            Tab(
+            const Tab(
               icon: Icon(Icons.person_search, size: 20),
               text: 'Prospectos Crédito',
+            ),
+            Tab(
+              icon: Badge(
+                label: pendientes > 0
+                    ? Text(
+                        '$pendientes',
+                        style: const TextStyle(fontSize: 10),
+                      )
+                    : null,
+                child: const Icon(Icons.inbox_outlined, size: 20),
+              ),
+              text: 'Solicitudes clientes',
             ),
           ],
         ),
@@ -319,6 +368,7 @@ class _ClientesProspectosTabsState extends State<_ClientesProspectosTabs>
             children: const [
               ClientesPichinchaTab(),
               ProspectosCreditoTab(),
+              BandejaSolicitudesClienteScreen(embedded: true),
             ],
           ),
         ),

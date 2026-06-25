@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/formato_fecha.dart';
 import '../../model/estado_solicitud.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
@@ -308,7 +309,7 @@ class _EtapaTimeline extends StatelessWidget {
                 ),
                 if (etapa.fecha != null)
                   Text(
-                    '${etapa.fecha!.day}/${etapa.fecha!.month}/${etapa.fecha!.year}',
+                    FormatoFecha.corta(etapa.fecha),
                     style: const TextStyle(
                       color: Colors.white38,
                       fontSize: 10,

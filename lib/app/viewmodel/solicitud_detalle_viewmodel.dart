@@ -72,9 +72,10 @@ class SolicitudDetalleViewModel extends ChangeNotifier {
   List<EtapaLineaTiempo> _construirLineaTiempo(SolicitudDetalleModel d) {
     final e = d.estado;
     final orden = [
-      ('Enviada', d.fechaEnvio, 0),
-      ('En comité', d.fechaComite, 1),
-      ('Aprobada', d.fechaAprobacion, 2),
+      ('Recibido en comité', d.fechaRecibidoComite ?? d.fechaEnvio, 0),
+      ('En evaluación', d.fechaEvaluacion, 1),
+      (e == EstadoSolicitud.condicionada ? 'Condicionada' : 'Aprobada',
+          d.fechaAprobacion, 2),
       ('Desembolsada', d.fechaDesembolso, 3),
     ];
 
@@ -82,10 +83,10 @@ class SolicitudDetalleViewModel extends ChangeNotifier {
     if (e == EstadoSolicitud.rechazada) {
       return [
         EtapaLineaTiempo(
-          titulo: 'Enviada',
-          completada: d.fechaEnvio != null,
+          titulo: 'Recibido en comité',
+          completada: d.fechaRecibidoComite != null || d.fechaEnvio != null,
           futura: false,
-          fecha: d.fechaEnvio,
+          fecha: d.fechaRecibidoComite ?? d.fechaEnvio,
         ),
         EtapaLineaTiempo(
           titulo: 'Rechazada',
@@ -97,13 +98,16 @@ class SolicitudDetalleViewModel extends ChangeNotifier {
     }
 
     switch (e) {
+      case EstadoSolicitud.recibidoComite:
       case EstadoSolicitud.enviada:
         nivelActual = 0;
         break;
+      case EstadoSolicitud.enEvaluacion:
       case EstadoSolicitud.enComite:
         nivelActual = 1;
         break;
       case EstadoSolicitud.aprobada:
+      case EstadoSolicitud.condicionada:
         nivelActual = 2;
         break;
       case EstadoSolicitud.desembolsada:

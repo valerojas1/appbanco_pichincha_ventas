@@ -7,6 +7,7 @@ import '../../../ui/theme/app_theme.dart';
 class FichaRapidaSheet extends StatelessWidget {
   final CarteraDiariaModel cliente;
   final VoidCallback onVerFichaCompleta;
+  final VoidCallback onFichaCampo;
   final VoidCallback onNavegar;
   final VoidCallback onCerrar;
 
@@ -14,6 +15,7 @@ class FichaRapidaSheet extends StatelessWidget {
     super.key,
     required this.cliente,
     required this.onVerFichaCompleta,
+    required this.onFichaCampo,
     required this.onNavegar,
     required this.onCerrar,
   });
@@ -109,6 +111,16 @@ class FichaRapidaSheet extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: onFichaCampo,
+            icon: const Icon(Icons.assignment_outlined, size: 18),
+            label: const Text('Ficha de campo (GPS)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white70,
+              side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+            ),
           ),
         ],
       ),

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 enum NivelPrioridad { alta, media, normal }
 
@@ -30,18 +29,6 @@ class CarteraNivelPrioridad {
         return Colors.amber;
       case NivelPrioridad.normal:
         return Colors.green;
-    }
-  }
-
-  static double hueMarcador(NivelPrioridad nivel, {bool visitado = false}) {
-    if (visitado) return BitmapDescriptor.hueAzure;
-    switch (nivel) {
-      case NivelPrioridad.alta:
-        return BitmapDescriptor.hueRed;
-      case NivelPrioridad.media:
-        return BitmapDescriptor.hueYellow;
-      case NivelPrioridad.normal:
-        return BitmapDescriptor.hueGreen;
     }
   }
 }

@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,7 +11,6 @@ import 'app/core/supabase_config.dart';
 import 'app/navigation/app_router.dart';
 import 'app/core/network_service.dart';
 import 'app/services/cobranza_local_notifications_service.dart';
-import 'app/services/fcm_messaging_service.dart';
 import 'package:workmanager/workmanager.dart';
 import 'app/workers/sincronizacion_nocturna_callback.dart';
 import 'app/ui/theme/app_theme.dart';
@@ -33,6 +35,11 @@ import 'app/viewmodel/cartera_vencida_viewmodel.dart';
 import 'app/viewmodel/offline_sync_viewmodel.dart';
 import 'app/viewmodel/monitor_asesores_viewmodel.dart';
 import 'app/viewmodel/reporte_productividad_viewmodel.dart';
+import 'app/viewmodel/admin_web_inicio_viewmodel.dart';
+import 'app/viewmodel/admin_revision_documentos_viewmodel.dart';
+import 'app/viewmodel/admin_solicitudes_tablero_viewmodel.dart';
+import 'app/viewmodel/admin_solicitud_evaluacion_viewmodel.dart';
+import 'app/viewmodel/bandeja_solicitudes_cliente_viewmodel.dart';
 import 'firebase_options.dart';
 
 /// Handler de mensajes FCM con la app en segundo plano o cerrada.
@@ -44,24 +51,41 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
 
   await Supabase.initialize(
     url: SupabaseConfig.supabaseUrl,
     anonKey: SupabaseConfig.supabaseAnonKey,
   );
 
-  await CobranzaLocalNotificationsService.instance.inicializar();
-  await NetworkService.instance.inicializar();
-  await Workmanager().initialize(callbackDispatcher);
+  if (!kIsWeb) {
+    try {
+      await CobranzaLocalNotificationsService.instance.inicializar();
+    } catch (e) {
+      debugPrint('Notificaciones locales init error: $e');
+    }
+    try {
+      await Workmanager().initialize(callbackDispatcher);
+    } catch (e) {
+      debugPrint('Workmanager init error: $e');
+    }
+  }
+  try {
+    await NetworkService.instance.inicializar();
+  } catch (e) {
+    debugPrint('NetworkService init error: $e');
+  }
 
   final authViewModel = AuthOficialViewModel();
-  await authViewModel.initialize();
-
   runApp(AppPichinchaVentas(authViewModel: authViewModel));
+  unawaited(authViewModel.initialize());
 }
 
 class AppPichinchaVentas extends StatelessWidget {
@@ -95,6 +119,11 @@ class AppPichinchaVentas extends StatelessWidget {
         ),
         ChangeNotifierProvider(create: (_) => MonitorAsesoresViewModel()),
         ChangeNotifierProvider(create: (_) => ReporteProductividadViewModel()),
+        ChangeNotifierProvider(create: (_) => AdminWebInicioViewModel()),
+        ChangeNotifierProvider(create: (_) => AdminRevisionDocumentosViewModel()),
+        ChangeNotifierProvider(create: (_) => AdminSolicitudesTableroViewModel()),
+        ChangeNotifierProvider(create: (_) => AdminSolicitudEvaluacionViewModel()),
+        ChangeNotifierProvider(create: (_) => BandejaSolicitudesClienteViewModel()),
       ],
       child: MaterialApp(
         navigatorKey: appNavigatorKey,

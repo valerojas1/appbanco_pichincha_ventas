@@ -195,6 +195,24 @@ class CarteraViewModel extends ChangeNotifier {
     return ok;
   }
 
+  void actualizarCoordenadasLocal(
+    String carteraid, {
+    required double latitud,
+    required double longitud,
+    String? direccion,
+  }) {
+    final index = _items.indexWhere((i) => i.id == carteraid);
+    if (index == -1) return;
+
+    _items[index] = _items[index].copyWith(
+      latitud: latitud,
+      longitud: longitud,
+      direccion: direccion,
+    );
+    _aplicarFiltrosYBusqueda();
+    notifyListeners();
+  }
+
   Future<void> sincronizarVisitasPendientes() async {
     await _visitaService.sincronizarPendientes();
     if (_asesorIds.isNotEmpty) await cargarCartera(_asesorIds);

@@ -19,7 +19,10 @@ class OficialScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (embedded) {
-      return ColoredBox(color: AppTheme.fondoOscuro, child: body);
+      return ColoredBox(
+        color: AppTheme.fondoOscuro,
+        child: SizedBox.expand(child: body),
+      );
     }
 
     return Scaffold(

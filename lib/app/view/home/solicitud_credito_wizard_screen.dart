@@ -5,6 +5,8 @@ import 'package:signature/signature.dart';
 import '../../model/preevaluacion_resultado_model.dart';
 import '../../model/solicitud_credito_data.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/monto_editable_slider.dart';
+import '../../ui/widgets/ubicacion_negocio_mapa_panel.dart';
 import '../../core/buro_solicitud_gate.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../viewmodel/solicitud_credito_viewmodel.dart';
@@ -33,26 +35,57 @@ class _SolicitudCreditoWizardScreenState
     penColor: Colors.white,
     exportBackgroundColor: AppTheme.navyOscuro,
   );
+  late final String _sessionKey;
+  bool _vmListo = false;
 
   @override
   void initState() {
     super.initState();
+    _sessionKey = _resolverSessionKey();
+  }
+
+  String _resolverSessionKey() {
+    final existente = widget.borradorExistente;
+    if (existente?.solicitudIdServidor != null &&
+        existente!.solicitudIdServidor!.isNotEmpty) {
+      return existente.solicitudIdServidor!;
+    }
+    if (existente?.borradorIdLocal != null &&
+        existente!.borradorIdLocal!.isNotEmpty) {
+      return existente.borradorIdLocal!;
+    }
+    if (widget.prefill != null) {
+      return widget.prefill!.dni;
+    }
+    return 'nueva_${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_vmListo) return;
+
+    final asesor = context.read<AuthOficialViewModel>().oficial?.asesorid;
+    if (asesor == null) return;
+
+    final vm = context.read<SolicitudCreditoViewModel>();
+    if (widget.borradorExistente != null) {
+      vm.iniciar(asesorid: asesor, existente: widget.borradorExistente);
+    } else if (widget.prefill != null) {
+      vm.iniciar(
+        asesorid: asesor,
+        existente: _dataDesdePrefill(widget.prefill!, asesor),
+      );
+    } else {
+      vm.iniciar(asesorid: asesor);
+    }
+    vm.refrescarPendientes();
+
+    _vmListo = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final asesor = context.read<AuthOficialViewModel>().oficial?.asesorid;
-      if (asesor == null) return;
-      final vm = context.read<SolicitudCreditoViewModel>();
-      if (widget.borradorExistente != null) {
-        vm.iniciar(asesorid: asesor, existente: widget.borradorExistente);
-      } else if (widget.prefill != null) {
-        vm.iniciar(
-          asesorid: asesor,
-          existente: _dataDesdePrefill(widget.prefill!, asesor),
-        );
-      } else {
-        vm.iniciar(asesorid: asesor);
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(vm.paso);
       }
-      vm.refrescarPendientes();
-      _pageController.jumpToPage(vm.paso);
     });
   }
 
@@ -92,6 +125,15 @@ class _SolicitudCreditoWizardScreenState
 
   @override
   Widget build(BuildContext context) {
+    if (!_vmListo) {
+      return const Scaffold(
+        backgroundColor: AppTheme.fondoOscuro,
+        body: Center(
+          child: CircularProgressIndicator(color: AppTheme.amarillo),
+        ),
+      );
+    }
+
     final vm = context.watch<SolicitudCreditoViewModel>();
     final data = vm.data;
     if (data == null) {
@@ -155,18 +197,22 @@ class _SolicitudCreditoWizardScreenState
               physics: const NeverScrollableScrollPhysics(),
               children: [
                 _Paso1Solicitante(
+                  key: ValueKey('paso1_$_sessionKey'),
                   data: data,
                   onChanged: (d) => vm.actualizar(d),
                 ),
                 _Paso2Negocio(
+                  key: ValueKey('paso2_$_sessionKey'),
                   data: data,
                   onChanged: (d) => vm.actualizar(d),
                 ),
                 _Paso3Condiciones(
+                  key: ValueKey('paso3_$_sessionKey'),
                   data: data,
                   onChanged: (d) => vm.actualizar(d),
                 ),
                 _Paso4Confirmacion(
+                  key: ValueKey('paso4_$_sessionKey'),
                   data: data,
                   sigController: _sigController,
                   onChanged: (d) => vm.actualizar(d),
@@ -403,7 +449,11 @@ class _Paso1Solicitante extends StatefulWidget {
   final SolicitudCreditoData data;
   final ValueChanged<SolicitudCreditoData> onChanged;
 
-  const _Paso1Solicitante({required this.data, required this.onChanged});
+  const _Paso1Solicitante({
+    super.key,
+    required this.data,
+    required this.onChanged,
+  });
 
   @override
   State<_Paso1Solicitante> createState() => _Paso1SolicitanteState();
@@ -589,7 +639,11 @@ class _Paso2Negocio extends StatefulWidget {
   final SolicitudCreditoData data;
   final ValueChanged<SolicitudCreditoData> onChanged;
 
-  const _Paso2Negocio({required this.data, required this.onChanged});
+  const _Paso2Negocio({
+    super.key,
+    required this.data,
+    required this.onChanged,
+  });
 
   @override
   State<_Paso2Negocio> createState() => _Paso2NegocioState();
@@ -657,19 +711,23 @@ class _Paso2NegocioState extends State<_Paso2Negocio> {
           _Campo(controller: _tipo, label: 'Tipo de negocio', onChanged: (_) => _emit()),
           _Campo(controller: _nombre, label: 'Nombre del negocio', onChanged: (_) => _emit()),
           _Campo(controller: _dir, label: 'Dirección', onChanged: (_) => _emit()),
-          Text(
-            'Antigüedad: ${d.antiguedadMeses} meses (mín. 6)',
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
-          Slider(
-            value: d.antiguedadMeses.toDouble().clamp(6, 120),
+          if (d.tieneCoordenadasNegocio) ...[
+            const SizedBox(height: 8),
+            UbicacionNegocioMapaPanel(
+              latitud: d.latitudNegocio!,
+              longitud: d.longitudNegocio!,
+              direccionTexto: d.direccionNegocio,
+              nombreNegocio: d.nombreNegocio,
+              compacto: true,
+            ),
+          ],
+          AntiguedadEditableSlider(
+            value: d.antiguedadMeses,
             min: 6,
             max: 120,
             divisions: 19,
-            activeColor: AppTheme.amarillo,
-            label: '${d.antiguedadMeses} meses',
             onChanged: (v) {
-              d.antiguedadMeses = v.round();
+              d.antiguedadMeses = v;
               _emit();
               setState(() {});
             },
@@ -720,7 +778,11 @@ class _Paso3Condiciones extends StatelessWidget {
   final SolicitudCreditoData data;
   final ValueChanged<SolicitudCreditoData> onChanged;
 
-  const _Paso3Condiciones({required this.data, required this.onChanged});
+  const _Paso3Condiciones({
+    super.key,
+    required this.data,
+    required this.onChanged,
+  });
 
   static const _plazos = [3, 6, 12, 18, 24, 36, 48, 60];
 
@@ -733,17 +795,13 @@ class _Paso3Condiciones extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _TituloPaso('Condiciones del crédito'),
-          Text(
-            'Monto: ${d.moneda} ${d.monto.toStringAsFixed(0)}',
-            style: const TextStyle(color: Colors.white70),
-          ),
-          Slider(
-            value: d.monto.clamp(500, 150000),
+          MontoEditableSlider(
+            value: d.monto,
             min: 500,
             max: 150000,
-            divisions: 149,
-            activeColor: AppTheme.amarillo,
-            label: '${d.monto.toStringAsFixed(0)}',
+            divisions: 1495,
+            etiqueta: 'Monto',
+            prefijo: d.moneda,
             onChanged: (v) {
               d.monto = v;
               onChanged(d);
@@ -811,6 +869,23 @@ class _Paso3Condiciones extends StatelessWidget {
             'TEA referencial: ${d.tea.toStringAsFixed(1)}%',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
+          CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            value: d.incluyeSeguroDesgravamen,
+            activeColor: AppTheme.amarillo,
+            title: const Text(
+              'Incluir seguro de desgravamen',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            subtitle: const Text(
+              'La cuota incluye prima de seguro de desgravamen (0.1% del capital/mes).',
+              style: TextStyle(color: Colors.white38, fontSize: 11),
+            ),
+            onChanged: (v) {
+              d.incluyeSeguroDesgravamen = v ?? false;
+              onChanged(d);
+            },
+          ),
           Slider(
             value: d.tea.clamp(12, 48),
             min: 12,
@@ -841,7 +916,11 @@ class _Paso3Condiciones extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                _SimRow('Cuota mensual', '${d.moneda} ${d.cuotaMensual.toStringAsFixed(2)}'),
+                _SimRow(
+                  'Cuota mensual',
+                  '${d.moneda} ${d.cuotaMensual.toStringAsFixed(2)}'
+                  '${d.incluyeSeguroDesgravamen ? ' (con seguro de desgravamen)' : ''}',
+                ),
                 _SimRow('Total a pagar', '${d.moneda} ${d.totalPagar.toStringAsFixed(2)}'),
                 _SimRow('Total intereses', '${d.moneda} ${d.totalIntereses.toStringAsFixed(2)}'),
                 const SizedBox(height: 4),
@@ -893,6 +972,7 @@ class _Paso4Confirmacion extends StatefulWidget {
   final ValueChanged<SolicitudCreditoData> onChanged;
 
   const _Paso4Confirmacion({
+    super.key,
     required this.data,
     required this.sigController,
     required this.onChanged,
@@ -925,14 +1005,29 @@ class _Paso4ConfirmacionState extends State<_Paso4Confirmacion> {
             lineas: [
               '${d.nombreNegocio} (${d.tipoNegocio})',
               d.direccionNegocio,
+              if (d.tieneCoordenadasNegocio)
+                'GPS: ${d.latitudNegocio!.toStringAsFixed(6)}, '
+                    '${d.longitudNegocio!.toStringAsFixed(6)}',
               'Ingresos S/ ${d.ingresosEstimados.toStringAsFixed(0)}',
             ],
           ),
+          if (d.tieneCoordenadasNegocio) ...[
+            const SizedBox(height: 8),
+            UbicacionNegocioMapaPanel(
+              latitud: d.latitudNegocio!,
+              longitud: d.longitudNegocio!,
+              direccionTexto: d.direccionNegocio,
+              nombreNegocio: d.nombreNegocio,
+              compacto: true,
+            ),
+          ],
           _ResumenCard(
             titulo: 'Condiciones',
             lineas: [
               '${d.moneda} ${d.monto.toStringAsFixed(0)} · ${d.plazoMeses} meses',
-              'Cuota ${d.cuotaMensual.toStringAsFixed(2)} · TEA ${d.tea.toStringAsFixed(1)}%',
+              'Cuota ${d.cuotaMensual.toStringAsFixed(2)}'
+              '${d.incluyeSeguroDesgravamen ? ' (con seguro de desgravamen)' : ''}'
+              ' · TEA ${d.tea.toStringAsFixed(1)}%',
               'Garantía: ${d.tipoGarantia}',
             ],
           ),

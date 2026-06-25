@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../../core/maps_config.dart';
 import '../../model/asesor_monitor_model.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/oficial_scaffold.dart';
@@ -16,6 +18,9 @@ class MonitorAsesoresScreen extends StatefulWidget {
 }
 
 class _MonitorAsesoresScreenState extends State<MonitorAsesoresScreen> {
+  final MapController _mapController = MapController();
+  bool _estabaCargando = true;
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +33,13 @@ class _MonitorAsesoresScreenState extends State<MonitorAsesoresScreen> {
   Widget build(BuildContext context) {
     final vm = context.watch<MonitorAsesoresViewModel>();
 
+    if (_estabaCargando && !vm.cargando && vm.marcadores.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ajustarCamara(vm);
+      });
+    }
+    _estabaCargando = vm.cargando;
+
     return OficialScaffold(
       embedded: widget.embedded,
       title: 'Monitor de asesores',
@@ -39,14 +51,43 @@ class _MonitorAsesoresScreenState extends State<MonitorAsesoresScreen> {
               children: [
                 SizedBox(
                   height: 220,
-                  child: GoogleMap(
-                    initialCameraPosition: const CameraPosition(
-                      target: LatLng(-12.0464, -77.0428),
-                      zoom: 11,
-                    ),
-                    markers: vm.marcadores,
-                    myLocationButtonEnabled: false,
-                    zoomControlsEnabled: false,
+                  child: Stack(
+                    children: [
+                      FlutterMap(
+                        mapController: _mapController,
+                        options: MapOptions(
+                          initialCenter: vm.centroMapa,
+                          initialZoom: vm.marcadores.isEmpty ? 12 : 11,
+                          interactionOptions: const InteractionOptions(
+                            flags: InteractiveFlag.all,
+                          ),
+                        ),
+                        children: [
+                          TileLayer(
+                            urlTemplate: MapsConfig.osmTileUrl,
+                            userAgentPackageName: MapsConfig.osmUserAgent,
+                          ),
+                          MarkerLayer(markers: vm.marcadores),
+                          const RichAttributionWidget(
+                            attributions: [
+                              TextSourceAttribution(
+                                'OpenStreetMap contributors',
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      if (vm.cargando)
+                        ColoredBox(
+                          color: AppTheme.fondoOscuro.withValues(alpha: 0.6),
+                          child: const Center(
+                            child: CircularProgressIndicator(
+                              color: AppTheme.amarillo,
+                              strokeWidth: 2,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 const Padding(
@@ -55,9 +96,11 @@ class _MonitorAsesoresScreenState extends State<MonitorAsesoresScreen> {
                     children: [
                       Icon(Icons.circle, color: AppTheme.amarillo, size: 10),
                       SizedBox(width: 6),
-                      Text(
-                        'Última ubicación registrada en cartera del día',
-                        style: TextStyle(color: Colors.white54, fontSize: 11),
+                      Expanded(
+                        child: Text(
+                          'Última ubicación registrada en cartera del día · OpenStreetMap',
+                          style: TextStyle(color: Colors.white54, fontSize: 11),
+                        ),
                       ),
                     ],
                   ),
@@ -81,6 +124,44 @@ class _MonitorAsesoresScreenState extends State<MonitorAsesoresScreen> {
             ),
     );
   }
+
+  void _ajustarCamara(MonitorAsesoresViewModel vm) {
+    final puntos = vm.puntosParaEncuadre();
+    if (puntos.isEmpty) return;
+
+    if (puntos.length == 1) {
+      _mapController.move(puntos.first, 13);
+      return;
+    }
+
+    var minLat = puntos.first.latitude;
+    var maxLat = puntos.first.latitude;
+    var minLng = puntos.first.longitude;
+    var maxLng = puntos.first.longitude;
+
+    for (final p in puntos) {
+      minLat = minLat < p.latitude ? minLat : p.latitude;
+      maxLat = maxLat > p.latitude ? maxLat : p.latitude;
+      minLng = minLng < p.longitude ? minLng : p.longitude;
+      maxLng = maxLng > p.longitude ? maxLng : p.longitude;
+    }
+
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds(
+          LatLng(minLat - 0.01, minLng - 0.01),
+          LatLng(maxLat + 0.01, maxLng + 0.01),
+        ),
+        padding: const EdgeInsets.all(24),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
 }
 
 class _FilaAsesor extends StatelessWidget {
@@ -100,7 +181,7 @@ class _FilaAsesor extends StatelessWidget {
         ),
         subtitle: Text(
           'Visitados ${item.visitados} / ${item.total} '
-          '(${ (item.progreso * 100).toStringAsFixed(0)}%)',
+          '(${(item.progreso * 100).toStringAsFixed(0)}%)',
           style: const TextStyle(color: Colors.white54, fontSize: 12),
         ),
         trailing: item.latitud != null

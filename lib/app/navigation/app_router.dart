@@ -11,6 +11,7 @@ import '../view/home/ficha_cliente_screen.dart';
 import '../view/home/pre_evaluacion_screen.dart';
 import '../view/home/cliente_desertor_screen.dart';
 import '../view/home/solicitud_credito_wizard_screen.dart';
+import '../view/home/bandeja_solicitudes_cliente_screen.dart';
 import '../view/home/borradores_solicitud_screen.dart';
 import '../view/home/seleccion_solicitud_documentos_screen.dart';
 import '../view/home/captura_documentos_screen.dart';
@@ -38,6 +39,7 @@ class AppRouter {
   static const String prospeccion = '/prospeccion';
   static const String clienteDesertor = '/cliente-desertor';
   static const String solicitudCredito = '/solicitud-credito';
+  static const String bandejaSolicitudesCliente = '/bandeja-solicitudes-cliente';
   static const String borradoresSolicitud = '/borradores-solicitud';
   static const String documentosSolicitud = '/documentos-solicitud';
   static const String capturaDocumentos = '/captura-documentos';
@@ -150,6 +152,10 @@ class AppRouter {
       case borradoresSolicitud:
         return MaterialPageRoute(
           builder: (_) => const BorradoresSolicitudScreen(),
+        );
+      case bandejaSolicitudesCliente:
+        return MaterialPageRoute(
+          builder: (_) => const BandejaSolicitudesClienteScreen(embedded: true),
         );
       case documentosSolicitud:
         return MaterialPageRoute(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 import '../core/cartera_nivel_prioridad.dart';
 import '../core/geocerca_util.dart';
 import '../core/maps_config.dart';
@@ -20,9 +21,9 @@ class RutaMapaViewModel extends ChangeNotifier {
   List<CarteraDiariaModel> _clientes = [];
   List<GeocercaZonaModel> _geocercas = [];
   LatLng? _posicionActual;
-  Set<Marker> _markers = {};
-  Set<Polygon> _polygons = {};
-  Set<Polyline> _polylines = {};
+  List<Marker> _marcadores = [];
+  List<Polygon> _poligonos = [];
+  List<Polyline> _polilineas = [];
   bool _loading = false;
   bool _optimizando = false;
   bool _mostrarGeocercas = false;
@@ -34,9 +35,9 @@ class RutaMapaViewModel extends ChangeNotifier {
   List<CarteraDiariaModel> get clientes => _clientes;
   List<GeocercaZonaModel> get geocercas => _geocercas;
   LatLng? get posicionActual => _posicionActual;
-  Set<Marker> get markers => _markers;
-  Set<Polygon> get polygons => _polygons;
-  Set<Polyline> get polylines => _polylines;
+  List<Marker> get marcadores => _marcadores;
+  List<Polygon> get poligonos => _poligonos;
+  List<Polyline> get polilineas => _polilineas;
   bool get loading => _loading;
   bool get optimizando => _optimizando;
   bool get mostrarGeocercas => _mostrarGeocercas;
@@ -69,7 +70,7 @@ class RutaMapaViewModel extends ChangeNotifier {
     _clientes = await _carteraService.getCarteraHoy(asesorid);
     _geocercas = await _geocercaService.listarActivas();
     _ordenOptimizado = [];
-    _polylines = {};
+    _polilineas = [];
 
     _construirMapa();
     _loading = false;
@@ -97,22 +98,24 @@ class RutaMapaViewModel extends ChangeNotifier {
   }
 
   void _construirMapa() {
-    _markers = _buildMarkers();
-    _polygons = _mostrarGeocercas ? _buildPolygons() : {};
+    _marcadores = _buildMarcadores();
+    _poligonos = _mostrarGeocercas ? _buildPoligonos() : [];
   }
 
-  Set<Marker> _buildMarkers() {
-    final markers = <Marker>{};
+  List<Marker> _buildMarcadores() {
+    final marcadores = <Marker>[];
 
     if (_posicionActual != null) {
-      markers.add(
+      marcadores.add(
         Marker(
-          markerId: const MarkerId('yo'),
-          position: _posicionActual!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            BitmapDescriptor.hueAzure,
+          point: _posicionActual!,
+          width: 36,
+          height: 36,
+          child: const Icon(
+            Icons.my_location,
+            color: Colors.blue,
+            size: 32,
           ),
-          infoWindow: const InfoWindow(title: 'Tu ubicación'),
         ),
       );
     }
@@ -120,37 +123,38 @@ class RutaMapaViewModel extends ChangeNotifier {
     for (final c in _clientes) {
       if (!c.tieneCoordenadas) continue;
       final nivel = c.nivelPrioridad;
-      markers.add(
+      final color = CarteraNivelPrioridad.colorMarcador(
+        nivel,
+        visitado: c.esVisitado,
+      );
+      marcadores.add(
         Marker(
-          markerId: MarkerId(c.id),
-          position: LatLng(c.latitud!, c.longitud!),
-          icon: BitmapDescriptor.defaultMarkerWithHue(
-            CarteraNivelPrioridad.hueMarcador(
-              nivel,
-              visitado: c.esVisitado,
-            ),
+          point: LatLng(c.latitud!, c.longitud!),
+          width: 34,
+          height: 34,
+          child: GestureDetector(
+            onTap: () {
+              _clienteSeleccionado = c;
+              notifyListeners();
+            },
+            child: Icon(Icons.location_on, color: color, size: 34),
           ),
-          onTap: () {
-            _clienteSeleccionado = c;
-            notifyListeners();
-          },
         ),
       );
     }
 
-    return markers;
+    return marcadores;
   }
 
-  Set<Polygon> _buildPolygons() {
+  List<Polygon> _buildPoligonos() {
     return _geocercas.map((z) {
       return Polygon(
-        polygonId: PolygonId(z.id),
         points: z.puntos,
-        fillColor: z.color.withValues(alpha: 0.18),
-        strokeColor: z.color.withValues(alpha: 0.7),
-        strokeWidth: 2,
+        color: z.color.withValues(alpha: 0.18),
+        borderColor: z.color.withValues(alpha: 0.7),
+        borderStrokeWidth: 2,
       );
-    }).toSet();
+    }).toList();
   }
 
   void limpiarSeleccion() {
@@ -185,15 +189,13 @@ class RutaMapaViewModel extends ChangeNotifier {
       clientesPorId: coords,
     );
 
-    _polylines = {
+    _polilineas = [
       Polyline(
-        polylineId: const PolylineId('ruta_opt'),
         points: puntos,
         color: const Color(0xFFFFD100),
-        width: 4,
-        geodesic: true,
+        strokeWidth: 4,
       ),
-    };
+    ];
 
     _optimizando = false;
     notifyListeners();
@@ -231,5 +233,16 @@ class RutaMapaViewModel extends ChangeNotifier {
   Future<void> recargar() async {
     if (_asesorid == null) return;
     await cargar(asesorid: _asesorid!, perfil: _perfil);
+  }
+
+  List<LatLng> puntosParaEncuadre() {
+    final puntos = _clientes
+        .where((c) => c.tieneCoordenadas)
+        .map((c) => LatLng(c.latitud!, c.longitud!))
+        .toList();
+    if (_posicionActual != null) {
+      puntos.add(_posicionActual!);
+    }
+    return puntos;
   }
 }

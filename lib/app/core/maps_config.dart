@@ -1,12 +1,9 @@
-/// Reemplaza con tu API Key de Google Maps (Cloud Console).
-/// Android: también en AndroidManifest.xml → com.google.android.geo.API_KEY
+/// Mapas OpenStreetMap vía flutter_map (sin API key ni Google Cloud).
 class MapsConfig {
-  static const String googleMapsApiKey = String.fromEnvironment(
-    'GOOGLE_MAPS_API_KEY',
-    defaultValue: '',
-  );
+  static const String osmTileUrl =
+      'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
-  static bool get tieneApiKey => googleMapsApiKey.isNotEmpty;
+  static const String osmUserAgent = 'com.example.appbanco_pichincha_ventas';
 
   static const LatLngCentro centroHuancayo = LatLngCentro(
     latitud: -12.0664,

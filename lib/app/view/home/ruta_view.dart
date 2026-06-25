@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
+import '../../core/maps_config.dart';
+import '../../model/cartera_diaria_model.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../viewmodel/ruta_mapa_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/oficial_scaffold.dart';
 import 'ficha_cliente_screen.dart';
+import 'ficha_cartera_screen.dart';
 import 'widgets/ficha_rapida_sheet.dart';
 
 class RutaView extends StatefulWidget {
@@ -18,8 +22,9 @@ class RutaView extends StatefulWidget {
 }
 
 class _RutaViewState extends State<RutaView> {
-  GoogleMapController? _mapController;
+  final MapController _mapController = MapController();
   String? _ultimoSheetClienteId;
+  bool _estabaCargando = true;
 
   @override
   void initState() {
@@ -63,6 +68,12 @@ class _RutaViewState extends State<RutaView> {
             );
           }
         },
+        onFichaCampo: () {
+          Navigator.pop(ctx);
+          _ultimoSheetClienteId = null;
+          vm.limpiarSeleccion();
+          _abrirFichaCampo(cliente);
+        },
         onVerFichaCompleta: () {
           Navigator.pop(ctx);
           vm.limpiarSeleccion();
@@ -79,10 +90,28 @@ class _RutaViewState extends State<RutaView> {
     );
   }
 
+  void _abrirFichaCampo(CarteraDiariaModel cliente) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FichaCarteraScreen(cartera: cliente),
+      ),
+    ).then((_) {
+      if (!mounted) return;
+      _cargar();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final vm = context.watch<RutaMapaViewModel>();
     final seleccionado = vm.clienteSeleccionado;
+    if (_estabaCargando && !vm.loading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _ajustarCamara(vm);
+      });
+    }
+    _estabaCargando = vm.loading;
     if (seleccionado != null && seleccionado.id != _ultimoSheetClienteId) {
       _ultimoSheetClienteId = seleccionado.id;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -94,89 +123,112 @@ class _RutaViewState extends State<RutaView> {
     return OficialScaffold(
       embedded: widget.embedded,
       title: 'Planificación de Ruta',
-      body: vm.loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.amarillo),
-            )
-          : Stack(
-              children: [
-                GoogleMap(
-                    initialCameraPosition: CameraPosition(
-                      target: vm.centroMapa,
-                      zoom: 14,
-                    ),
-                    markers: vm.markers,
-                    polygons: vm.polygons,
-                    polylines: vm.polylines,
-                    myLocationEnabled: true,
-                    myLocationButtonEnabled: true,
-                    mapToolbarEnabled: false,
-                    onMapCreated: (c) {
-                      _mapController = c;
-                      _ajustarCamara(vm);
-                    },
-                  ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  right: 12,
-                  child: _LeyendaMapa(
-                    conCoordenadas: vm.conCoordenadas,
-                    total: vm.clientes.length,
-                    mostrarGeocercas: vm.mostrarGeocercas,
-                  ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Positioned.fill(
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: vm.centroMapa,
+                initialZoom: 14,
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.all,
                 ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 16,
-                  child: _BarraAcciones(
-                    optimizando: vm.optimizando,
-                    onOptimizar: () async {
-                      await vm.optimizarRuta();
-                      _ajustarCamara(vm);
-                    },
-                    onNavegarSiguiente: () async {
-                      if (vm.ordenOptimizado.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Primero optimiza la ruta',
-                            ),
-                          ),
-                        );
-                        return;
-                      }
-                      final id = vm.ordenOptimizado.first;
-                      final cliente = vm.clientes
-                          .where((c) => c.id == id)
-                          .firstOrNull;
-                      if (cliente != null) {
-                        await vm.navegarA(cliente);
-                      }
-                    },
-                  ),
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate: MapsConfig.osmTileUrl,
+                  userAgentPackageName: MapsConfig.osmUserAgent,
+                ),
+                if (vm.poligonos.isNotEmpty)
+                  PolygonLayer(polygons: vm.poligonos),
+                if (vm.polilineas.isNotEmpty)
+                  PolylineLayer(polylines: vm.polilineas),
+                MarkerLayer(markers: vm.marcadores),
+                const RichAttributionWidget(
+                  attributions: [
+                    TextSourceAttribution('OpenStreetMap contributors'),
+                  ],
                 ),
               ],
             ),
+          ),
+          if (vm.loading)
+            ColoredBox(
+              color: AppTheme.fondoOscuro.withValues(alpha: 0.85),
+              child: const Center(
+                child: CircularProgressIndicator(color: AppTheme.amarillo),
+              ),
+            ),
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: _LeyendaMapa(
+              conCoordenadas: vm.conCoordenadas,
+              total: vm.clientes.length,
+              mostrarGeocercas: vm.mostrarGeocercas,
+            ),
+          ),
+          if (vm.posicionActual != null)
+            Positioned(
+              right: 16,
+              bottom: 88,
+              child: FloatingActionButton.small(
+                heroTag: 'ruta_mi_ubicacion',
+                backgroundColor: AppTheme.superficie,
+                foregroundColor: AppTheme.amarillo,
+                onPressed: () => _centrarEnUbicacion(vm.posicionActual!),
+                child: const Icon(Icons.my_location),
+              ),
+            ),
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: 16,
+            child: _BarraAcciones(
+              optimizando: vm.optimizando,
+              onOptimizar: () async {
+                await vm.optimizarRuta();
+                _ajustarCamara(vm);
+              },
+              onNavegarSiguiente: () async {
+                if (vm.ordenOptimizado.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Primero optimiza la ruta',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+                final id = vm.ordenOptimizado.first;
+                final cliente = vm.clientes
+                    .where((c) => c.id == id)
+                    .firstOrNull;
+                if (cliente != null) {
+                  await vm.navegarA(cliente);
+                }
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  void _ajustarCamara(RutaMapaViewModel vm) {
-    final controller = _mapController;
-    if (controller == null) return;
+  void _centrarEnUbicacion(LatLng punto) {
+    _mapController.move(punto, 15);
+  }
 
-    final puntos = vm.clientes
-        .where((c) => c.tieneCoordenadas)
-        .map((c) => LatLng(c.latitud!, c.longitud!))
-        .toList();
-    if (vm.posicionActual != null) puntos.add(vm.posicionActual!);
+  void _ajustarCamara(RutaMapaViewModel vm) {
+    final puntos = vm.puntosParaEncuadre();
     if (puntos.isEmpty) return;
 
     if (puntos.length == 1) {
-      controller.animateCamera(
-        CameraUpdate.newLatLngZoom(puntos.first, 15),
-      );
+      _mapController.move(puntos.first, 15);
       return;
     }
 
@@ -192,20 +244,20 @@ class _RutaViewState extends State<RutaView> {
       maxLng = maxLng > p.longitude ? maxLng : p.longitude;
     }
 
-    controller.animateCamera(
-      CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(minLat - 0.01, minLng - 0.01),
-          northeast: LatLng(maxLat + 0.01, maxLng + 0.01),
+    _mapController.fitCamera(
+      CameraFit.bounds(
+        bounds: LatLngBounds(
+          LatLng(minLat - 0.01, minLng - 0.01),
+          LatLng(maxLat + 0.01, maxLng + 0.01),
         ),
-        48,
+        padding: const EdgeInsets.all(48),
       ),
     );
   }
 
   @override
   void dispose() {
-    _mapController?.dispose();
+    _mapController.dispose();
     super.dispose();
   }
 }
@@ -236,6 +288,11 @@ class _LeyendaMapa extends StatelessWidget {
           Text(
             '$conCoordenadas / $total con ubicación en mapa',
             style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Mapa: OpenStreetMap (sin costo)',
+            style: TextStyle(color: Colors.white38, fontSize: 10),
           ),
           const SizedBox(height: 6),
           Wrap(

@@ -1,4 +1,4 @@
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 class RutaOptimizador {
   /// Vecino más cercano desde [origen] sobre clientes con coordenadas.

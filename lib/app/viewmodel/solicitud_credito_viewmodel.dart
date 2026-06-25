@@ -22,7 +22,9 @@ class SolicitudCreditoViewModel extends ChangeNotifier {
   List<SolicitudBorradorResumen> get borradores => _borradores;
 
   void iniciar({required String asesorid, SolicitudCreditoData? existente}) {
-    _data = existente ?? SolicitudCreditoData(asesorid: asesorid);
+    _data = existente != null
+        ? SolicitudCreditoData.fromJson(existente.toJson())
+        : SolicitudCreditoData(asesorid: asesorid);
     _paso = _data!.pasoActual.clamp(0, 3);
     _mensaje = null;
     notifyListeners();

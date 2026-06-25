@@ -33,6 +33,18 @@ class MenuConfig {
       },
     ),
     MenuItemConfig(
+      id: 'bandeja_clientes',
+      titulo: 'Solicitudes clientes',
+      icono: Icons.inbox_outlined,
+      route: AppRouter.bandejaSolicitudesCliente,
+      perfiles: {
+        PerfilOficial.operador,
+        PerfilOficial.superoperador,
+        PerfilOficial.supervisor,
+        PerfilOficial.administrador,
+      },
+    ),
+    MenuItemConfig(
       id: 'dashboard',
       titulo: 'Dashboard',
       icono: Icons.dashboard_outlined,

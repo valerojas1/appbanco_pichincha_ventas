@@ -9,6 +9,8 @@ import '../../viewmodel/cartera_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
 import '../../ui/widgets/oficial_scaffold.dart';
 import 'ficha_cliente_screen.dart';
+import 'ficha_cartera_screen.dart';
+import 'flujo_nueva_solicitud_screen.dart';
 
 class CarteraDiariaScreen extends StatefulWidget {
   final bool embedded;
@@ -307,6 +309,10 @@ class _ListaCartera extends StatelessWidget {
                     esVisitado: false,
                     mostrarArrastre: true,
                     onTap: () => _abrirFicha(context, item),
+                    onFichaCampo: () => _abrirFichaCampo(context, item),
+                    onProcesar: item.tipogestion == 'NUEVA SOLICITUD'
+                        ? () => _abrirFlujoNuevaSolicitud(context, item)
+                        : null,
                   );
                 },
               ),
@@ -336,6 +342,10 @@ class _ListaCartera extends StatelessWidget {
                     esVisitado: true,
                     mostrarArrastre: false,
                     onTap: () => _abrirFicha(context, item),
+                    onFichaCampo: () => _abrirFichaCampo(context, item),
+                    onProcesar: item.tipogestion == 'NUEVA SOLICITUD'
+                        ? () => _abrirFlujoNuevaSolicitud(context, item)
+                        : null,
                   );
                 },
                 childCount: visitados.length,
@@ -346,6 +356,23 @@ class _ListaCartera extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _abrirFlujoNuevaSolicitud(BuildContext context, CarteraDiariaModel item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FlujoNuevaSolicitudScreen(cartera: item),
+      ),
+    ).then((_) {
+      if (!context.mounted) return;
+      final oficial = context.read<AuthOficialViewModel>().oficial;
+      if (oficial != null) {
+        context
+            .read<CarteraViewModel>()
+            .cargarCartera(AsesorIdUtil.idsConsulta(oficial));
+      }
+    });
   }
 
   void _abrirFicha(BuildContext context, CarteraDiariaModel item) {
@@ -366,6 +393,23 @@ class _ListaCartera extends StatelessWidget {
       }
     });
   }
+
+  void _abrirFichaCampo(BuildContext context, CarteraDiariaModel item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FichaCarteraScreen(cartera: item),
+      ),
+    ).then((_) {
+      if (!context.mounted) return;
+      final oficial = context.read<AuthOficialViewModel>().oficial;
+      if (oficial != null) {
+        context
+            .read<CarteraViewModel>()
+            .cargarCartera(AsesorIdUtil.idsConsulta(oficial));
+      }
+    });
+  }
 }
 
 class _TarjetaCartera extends StatelessWidget {
@@ -374,6 +418,8 @@ class _TarjetaCartera extends StatelessWidget {
   final bool esVisitado;
   final bool mostrarArrastre;
   final VoidCallback onTap;
+  final VoidCallback onFichaCampo;
+  final VoidCallback? onProcesar;
 
   const _TarjetaCartera({
     super.key,
@@ -382,6 +428,8 @@ class _TarjetaCartera extends StatelessWidget {
     required this.esVisitado,
     required this.mostrarArrastre,
     required this.onTap,
+    required this.onFichaCampo,
+    this.onProcesar,
   });
 
   @override
@@ -483,7 +531,32 @@ class _TarjetaCartera extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (onProcesar != null) ...[
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: onProcesar,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.naranjaNuevo,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              textStyle: const TextStyle(fontSize: 11),
+                            ),
+                            child: const Text('PROCESAR SOLICITUD'),
+                          ),
+                        ),
+                      ],
                     ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Ficha de campo (GPS)',
+                  onPressed: onFichaCampo,
+                  icon: Icon(
+                    Icons.assignment_outlined,
+                    size: 20,
+                    color: esVisitado ? Colors.white38 : AppTheme.amarillo,
                   ),
                 ),
                 const Icon(Icons.chevron_right, color: Colors.white24),

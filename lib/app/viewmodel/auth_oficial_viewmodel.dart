@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io' show SocketException;
+
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth_constants.dart';
@@ -44,37 +47,43 @@ class AuthOficialViewModel extends ChangeNotifier {
     _state = AuthOficialState.initializing;
     notifyListeners();
 
-    await _refreshLockoutState();
+    try {
+      await _refreshLockoutState();
 
-    if (await _sessionService.isLockedOut()) {
-      _state = AuthOficialState.unauthenticated;
-      notifyListeners();
-      return;
-    }
-
-    final session = _authService.currentSession;
-    if (session != null) {
-      if (await _sessionService.isSessionExpiredByInactivity()) {
-        await _clearSessionInternal();
-        _errorMessage =
-            'Tu sesión expiró por inactividad (${AuthConstants.sessionInactivityLimit.inHours} h). Inicia sesión nuevamente.';
+      if (await _sessionService.isLockedOut()) {
         _state = AuthOficialState.unauthenticated;
-      } else {
-        final cached = await _sessionService.readProfileJson();
-        _oficial = cached != null
-            ? OficialModel.fromJsonString(cached)
-            : await _authService.restoreFromCurrentSession();
-
-        if (_oficial != null) {
-          await _sessionService.saveProfileJson(_oficial!.toJsonString());
-          _state = AuthOficialState.authenticated;
-          await _registrarFcm();
-        } else {
-          await _clearSessionInternal();
-          _state = AuthOficialState.unauthenticated;
-        }
+        return;
       }
-    } else {
+
+      final session = _authService.currentSession;
+      if (session != null) {
+        if (await _sessionService.isSessionExpiredByInactivity()) {
+          await _clearSessionInternal();
+          _errorMessage =
+              'Tu sesión expiró por inactividad (${AuthConstants.sessionInactivityLimit.inHours} h). Inicia sesión nuevamente.';
+          _state = AuthOficialState.unauthenticated;
+        } else {
+          final cached = await _sessionService.readProfileJson();
+          _oficial = cached != null
+              ? OficialModel.fromJsonString(cached)
+              : await _authService
+                  .restoreFromCurrentSession()
+                  .timeout(const Duration(seconds: 12), onTimeout: () => null);
+
+          if (_oficial != null) {
+            await _sessionService.saveProfileJson(_oficial!.toJsonString());
+            _state = AuthOficialState.authenticated;
+            unawaited(_registrarFcm());
+          } else {
+            await _clearSessionInternal();
+            _state = AuthOficialState.unauthenticated;
+          }
+        }
+      } else {
+        _state = AuthOficialState.unauthenticated;
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Auth initialize error: $e');
       _state = AuthOficialState.unauthenticated;
     }
 
@@ -95,22 +104,37 @@ class AuthOficialViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final user =
-          await _authService.loginWithCodigoEmpleado(codigoEmpleado, password);
+      final user = await _authService
+          .loginWithCodigoEmpleado(codigoEmpleado, password)
+          .timeout(const Duration(seconds: 20));
       if (user != null) {
         await _sessionService.clearFailedAttempts();
         _oficial = user;
         await _sessionService.saveProfileJson(user.toJsonString());
         _state = AuthOficialState.authenticated;
-        await _registrarFcm();
+        unawaited(_registrarFcm());
       } else {
         await _handleFailedLogin();
       }
+    } on AuthRetryableFetchException catch (e) {
+      _state = AuthOficialState.error;
+      _errorMessage = _mensajeConexion(e);
     } on AuthApiException catch (e) {
       await _handleFailedLogin(message: _mapAuthError(e.message));
-    } catch (_) {
+    } on AuthException catch (e) {
+      await _handleFailedLogin(message: _mapAuthError(e.message));
+    } on SocketException catch (e) {
       _state = AuthOficialState.error;
-      _errorMessage = 'Error de conexión. Intenta nuevamente.';
+      _errorMessage = _mensajeConexion(e);
+    } on TimeoutException catch (e) {
+      _state = AuthOficialState.error;
+      _errorMessage = _mensajeConexion(e);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Login error: $e');
+      _state = AuthOficialState.error;
+      _errorMessage = _esErrorConexion(e)
+          ? 'Error de conexión. Intenta nuevamente.'
+          : 'No se pudo iniciar sesión. Intenta nuevamente.';
     }
 
     await _refreshLockoutState();
@@ -140,6 +164,26 @@ class AuthOficialViewModel extends ChangeNotifier {
       return 'Código de empleado o contraseña incorrectos';
     }
     return message;
+  }
+
+  String _mensajeConexion(Object error) {
+    if (kDebugMode) debugPrint('Error de conexión auth: $error');
+    return 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+  }
+
+  bool _esErrorConexion(Object error) {
+    if (error is SocketException || error is TimeoutException) return true;
+    if (error is AuthRetryableFetchException) return true;
+    if (error is AuthUnknownException) {
+      final original = error.originalError;
+      return original is SocketException || original is TimeoutException;
+    }
+    final msg = error.toString().toLowerCase();
+    return msg.contains('socket') ||
+        msg.contains('network') ||
+        msg.contains('connection') ||
+        msg.contains('failed host lookup') ||
+        msg.contains('timed out');
   }
 
   Future<void> touchActivity() async {

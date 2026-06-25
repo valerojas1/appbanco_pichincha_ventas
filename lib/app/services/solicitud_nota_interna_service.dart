@@ -14,7 +14,8 @@ class SolicitudNotaInternaService {
   bool puedeAgregarNota(PerfilOficial perfil) =>
       perfil == PerfilOficial.operador ||
       perfil == PerfilOficial.superoperador ||
-      perfil == PerfilOficial.supervisor;
+      perfil == PerfilOficial.supervisor ||
+      perfil == PerfilOficial.administrador;
 
   Future<List<SolicitudNotaInternaModel>> listar(String solicitudId) async {
     try {

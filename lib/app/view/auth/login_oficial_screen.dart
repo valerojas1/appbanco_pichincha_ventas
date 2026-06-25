@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodel/auth_oficial_viewmodel.dart';
 import '../../ui/theme/app_theme.dart';
+import '../../ui/widgets/app_logo.dart';
+import 'login_web_layout.dart';
 
 class LoginOficialScreen extends StatefulWidget {
   const LoginOficialScreen({super.key});
@@ -31,6 +34,16 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return LoginWebLayout(
+        codigoController: _codigoController,
+        passController: _passController,
+        verPassword: _verPassword,
+        onTogglePassword: () => setState(() => _verPassword = !_verPassword),
+        formatCountdown: _formatCountdown,
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppTheme.fondoOscuro,
       body: SafeArea(
@@ -44,37 +57,7 @@ class _LoginOficialScreenState extends State<LoginOficialScreen> {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(height: 20),
-                  Container(
-                    width: 90,
-                    height: 90,
-                    decoration: BoxDecoration(
-                      color: AppTheme.amarillo,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned(
-                          left: 18,
-                          top: 18,
-                          child: Container(
-                            width: 16,
-                            height: 44,
-                            color: AppTheme.fondoOscuro,
-                          ),
-                        ),
-                        Positioned(
-                          left: 18,
-                          bottom: 18,
-                          child: Container(
-                            width: 36,
-                            height: 16,
-                            color: AppTheme.fondoOscuro,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const AppLogo(size: 90),
                   const SizedBox(height: 16),
                   const Text(
                     'Banco Pichincha Perú',

@@ -12,4 +12,5 @@
 
 La prueba de Firebase solo valida el canal FCM; la función Supabase envía notificaciones de negocio (comité, aprobado, rechazado, desembolsado).
 
-Ver `docs/GUIA_FCM_FIREBASE.md` sección 9.
+- Automático al cambiar `estado`: `docs/GUIA_NOTIFICACIONES_AUTOMATICAS.md`
+- Firebase y token: `docs/GUIA_FCM_FIREBASE.md` sección 9.

@@ -61,10 +61,17 @@ class SolicitudDetalleModel extends SolicitudResumenModel {
   final String? telefono;
   final int plazoMeses;
   final double? cuotaMensual;
+  final double? montoAprobado;
+  final double tea;
+  final String? codigoCondicion;
+  final String? motivoCondicion;
   final String? motivoRechazo;
   final DateTime? fechaComite;
+  final DateTime? fechaRecibidoComite;
+  final DateTime? fechaEvaluacion;
   final DateTime? fechaAprobacion;
   final DateTime? fechaDesembolso;
+  final int? diaPago;
   final String? firmaDigital;
   final bool declaracionJurada;
 
@@ -82,13 +89,22 @@ class SolicitudDetalleModel extends SolicitudResumenModel {
     this.telefono,
     this.plazoMeses = 12,
     this.cuotaMensual,
+    this.montoAprobado,
+    this.tea = 28,
+    this.codigoCondicion,
+    this.motivoCondicion,
     this.motivoRechazo,
     this.fechaComite,
+    this.fechaRecibidoComite,
+    this.fechaEvaluacion,
     this.fechaAprobacion,
     this.fechaDesembolso,
+    this.diaPago,
     this.firmaDigital,
     this.declaracionJurada = false,
   });
+
+  double get montoEfectivo => montoAprobado ?? monto;
 
   factory SolicitudDetalleModel.fromJson(Map<String, dynamic> json) {
     return SolicitudDetalleModel(
@@ -107,12 +123,30 @@ class SolicitudDetalleModel extends SolicitudResumenModel {
           ? json['plazomeses'] as int
           : int.tryParse(json['plazomeses']?.toString() ?? '') ?? 12,
       cuotaMensual: SolicitudResumenModel._toDouble(json['cuotamensual']),
+      montoAprobado: _toNullableDouble(json['montodaprobado']),
+      tea: SolicitudResumenModel._toDouble(json['tea']) > 0
+          ? SolicitudResumenModel._toDouble(json['tea'])
+          : 28,
+      codigoCondicion: json['codigocondicion']?.toString(),
+      motivoCondicion: json['motivocondicion']?.toString(),
       motivoRechazo: json['motivorechazo']?.toString(),
       fechaComite: SolicitudResumenModel._parseDate(json['fechacomite']),
+      fechaRecibidoComite:
+          SolicitudResumenModel._parseDate(json['fecharecibidocomite']),
+      fechaEvaluacion: SolicitudResumenModel._parseDate(json['fechaevaluacion']),
       fechaAprobacion: SolicitudResumenModel._parseDate(json['fechaaprobacion']),
       fechaDesembolso: SolicitudResumenModel._parseDate(json['fechadesembolso']),
+      diaPago: json['diapago'] is int
+          ? json['diapago'] as int
+          : int.tryParse(json['diapago']?.toString() ?? ''),
       firmaDigital: json['firmadigital']?.toString(),
       declaracionJurada: json['declaracionjurada'] == true,
     );
+  }
+
+  static double? _toNullableDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
   }
 }

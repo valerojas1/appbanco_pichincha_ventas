@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth_constants.dart';
 import '../model/oficial_model.dart';
@@ -16,10 +18,12 @@ class AuthService {
 
     final email = AuthConstants.emailFromCodigoEmpleado(codigo);
 
-    final authResponse = await _client.auth.signInWithPassword(
-      email: email,
-      password: password,
-    );
+    final authResponse = await _client.auth
+        .signInWithPassword(
+          email: email,
+          password: password,
+        )
+        .timeout(const Duration(seconds: 20));
 
     final authUser = authResponse.user;
     if (authUser == null) return null;
@@ -34,18 +38,15 @@ class AuthService {
   }
 
   Future<OficialModel?> _fetchPerfilPorAuthUser(String authUserId) async {
-    try {
-      final row = await _client
-          .from('vwperfilasesor')
-          .select()
-          .eq('auth_user_id', authUserId)
-          .maybeSingle();
+    final row = await _client
+        .from('vwperfilasesor')
+        .select()
+        .eq('auth_user_id', authUserId)
+        .maybeSingle()
+        .timeout(const Duration(seconds: 15));
 
-      if (row == null) return null;
-      return OficialModel.fromJson(Map<String, dynamic>.from(row));
-    } catch (_) {
-      return null;
-    }
+    if (row == null) return null;
+    return OficialModel.fromJson(Map<String, dynamic>.from(row));
   }
 
   Future<void> signOut() async {

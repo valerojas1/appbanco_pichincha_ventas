@@ -279,9 +279,11 @@ Si no llega nada:
 
 ## 9. Cuándo disparar cada notificación
 
-Puedes invocar la Edge Function desde:
+**Configuración automática (recomendada):** sigue la guía paso a paso en **`docs/GUIA_NOTIFICACIONES_AUTOMATICAS.md`** (Database Webhook + despliegue de función).
 
-- **Supabase Database Webhook** (recomendado en producción): trigger `AFTER UPDATE` en `solicitudescredito` cuando `estado` cambia.
+Puedes invocar la Edge Function manualmente desde:
+
+- **Database Webhook** (producción): ver guía automática arriba.
 - **SQL manual** (pruebas):
 
 ```sql

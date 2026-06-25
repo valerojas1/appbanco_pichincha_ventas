@@ -98,10 +98,12 @@ class TransmisionElectronicaService {
 
   Future<List<String>> _registrarSolicitud(String solicitudId) async {
     try {
+      final ahora = DateTime.now().toIso8601String();
       await _client.from('solicitudescredito').update({
-        'estado': 'enviada',
-        'fechaeenvio': DateTime.now().toIso8601String(),
-        'updatedat': DateTime.now().toIso8601String(),
+        'estado': 'recibido_comite',
+        'fechaeenvio': ahora,
+        'fecharecibidocomite': ahora,
+        'updatedat': ahora,
       }).eq('id', solicitudId);
       return [];
     } catch (e) {
@@ -131,13 +133,6 @@ class TransmisionElectronicaService {
         paso: TransmisionPaso.asignandoExpediente,
         numeroExpediente: expediente,
       );
-
-      try {
-        await _client.functions.invoke(
-          'notificar-solicitud',
-          body: {'solicitud_id': solicitudId, 'tipo': 'recibido_comite'},
-        );
-      } catch (_) {}
 
       return [];
     } catch (e) {
